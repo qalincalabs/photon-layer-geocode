@@ -1,0 +1,32 @@
+{
+  "type": "module",
+  "name": "@qalincalabs/photon-layer-geocode",
+  "version": "0.1.0",
+  "description": "Geocode structured address through Photon API. Achieve the best possible layer. ",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qalincalabs/photon-layer-geocode.git"
+  },
+  "keywords": [
+    "geocode",
+    "photon",
+    "osm",
+    "javascript"
+  ],
+  "author": "Olivier Wouters (Qalinca Labs - ULB)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/qalincalabs/photon-layer-geocode/issues"
+  },
+  "homepage": "https://github.com/qalincalabs/photon-layer-geocode#readme",
+  "devDependencies": {
+    "jest": "^29.2.2"
+  },
+  "dependencies": {
+    "node-fetch": "^3.2.10"
+  }
+}
