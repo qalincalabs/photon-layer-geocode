@@ -1,15 +1,8 @@
 import { addresses } from "./geocoder.test.data.js";
-import { PhotonLayerGeocoder, PhotonProperties, intersect } from "./geocoder.js";
-
-// hints
-
-// intial transform
-// belgium
-// hints per layer + alternatives
-// strategy > tactic > goals
+import { PhotonLayerGeocoder } from "./geocoder.js";
 
 test("Geocode OFN address", async () => {
-  const address = addresses.nearUccle;
+  const address = addresses.houseNumberNotInOSM;
 
   if (address.country_name == "Belgium")
     address.country_name = "België / Belgique / Belgien";
@@ -25,33 +18,59 @@ test("Geocode OFN address", async () => {
           transform: (initial) => {
             if (initial.country_name == "Belgium")
               initial.country_name = "België / Belgique / Belgien";
-            return initial
+            return initial;
           },
-          tactics: ["ofn-be-house", "ofn-be-locality", "ofn-be-street"]
+          tactics: ["ofn-be-house", "ofn-be-locality", "ofn-be-street"],
+          approve: {
+            house: (initial, consolidatedFeature) => {
+              return (
+                consolidatedFeature.housenumber != null &&
+                initial.address1.includes(consolidatedFeature.housenumber)
+              );
+            },
+          },
         },
       ],
       tactics: [
         {
           key: "ofn-be-house",
           layers: ["house"],
+          limit: 1,
           getSearchComponents: (initial) => {
-            return [initial.address1, initial.zipcode, initial.city, initial.country_name]
-          }
+            return [
+              initial.address1,
+              initial.zipcode,
+              initial.city,
+              initial.country_name,
+            ];
+          },
         },
         {
           key: "ofn-be-street",
           layers: ["street"],
           getSearchComponents: (initial) => {
-            return [initial.address1, initial.zipcode, initial.city, initial.country_name]
-          }
+            return [
+              initial.address1,
+              initial.zipcode,
+              initial.city,
+              initial.country_name,
+            ];
+          },
+        },
+        {
+          key: "ofn-be-street-without-locality",
+          layers: ["street"],
+          getSearchComponents: (initial) => {
+            return [initial.address1, initial.zipcode, initial.country_name];
+          },
         },
         {
           key: "ofn-be-locality",
           layers: ["district", "city"],
           getSearchComponents: (initial) => {
-            return [initial.city, initial.country_name]
-          }
-        }
+            return [initial.city, initial.country_name];
+          },
+        },
       ],
     }
   );

@@ -37,4 +37,12 @@ export const addresses = {
     zipcode: "1050",
     city: "Ixelles",
   },
+  streetDoesNotExist: {
+    address1: "Av. des bons légumes",
+    address2: null, // TODO use later, not sure it is in use
+    country_id: 29,
+    country_name: "Belgium",
+    zipcode: "1050",
+    city: "Ixelles",
+  },
 };
