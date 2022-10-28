@@ -19,7 +19,7 @@ test("Geocode OFN address", async () => {
 
   const result = await geocoder.geocode(address);
 
-  console.log(JSON.stringify(result));
+  console.log(JSON.stringify(result, null, 2));
 
   //expect(1+2).toBe(3);
 });

@@ -41,8 +41,6 @@ function photonFeatureId(featureProperties, untilLayer) {
 
   const layers = photonLayers.slice(1);
 
-  console.log(layers);
-
   for (const layer of layers) {
     if (featureProperties[layer] != null)
       idComponents.push(toSnakeCase(featureProperties[layer]));
@@ -66,17 +64,10 @@ export class PhotonLayerGeocoder {
 
     console.log(requestAddressComponents);
 
-    const requestUrl =
-      this.photonUrl +
-      "/?" +
-      new URLSearchParams({
-        q: requestAddressComponents.join(", "),
-      });
+    const response = await this.makePhotonRequest(requestAddressComponents);
 
-    const request = await fetch(requestUrl);
-    const response = await request.json();
-
-    const placeFeatureProperties = response.features[0].properties;
+    const feature = response.features[0]
+    const placeFeatureProperties = feature.properties;
 
     console.log(placeFeatureProperties);
 
@@ -84,7 +75,7 @@ export class PhotonLayerGeocoder {
       ids: ["osm/" + placeFeatureProperties.osm_id],
       houseNumber: placeFeatureProperties.housenumber,
       road: placeFeatureProperties.street,
-      geo: placeFeatureProperties.geometry, // TODO do I rename geometry
+      geo: feature.geometry, // TODO do I rename geometry
       areas: [],
     };
 
@@ -111,5 +102,17 @@ export class PhotonLayerGeocoder {
     }
 
     return r;
+  }
+
+  async makePhotonRequest(requestAddressComponents) {
+    const requestUrl = this.photonUrl +
+      "/?" +
+      new URLSearchParams({
+        q: requestAddressComponents.join(", "),
+      });
+
+    const request = await fetch(requestUrl);
+    const response = await request.json();
+    return response;
   }
 }
