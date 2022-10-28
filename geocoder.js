@@ -11,6 +11,19 @@ const photonLayers = [
   "house",
 ];
 
+export const PhotonProperties = [
+  "country",
+  "countrycode",
+  "state",
+  "county",
+  "city",
+  "district",
+  "locality",
+  "postcode",
+  "street",
+  "housenumber",
+]
+
 const photonAreas = [
   "country",
   "state",
@@ -20,6 +33,26 @@ const photonAreas = [
   "locality",
   "postcode",
 ];
+
+// city is commune in Belgium
+// county is arrondissement
+// state is province
+
+export function intersect(objects, keys) {
+
+  const intersection = {}
+
+  for(const k of keys){
+    const values = objects.map(o => o[k])
+    if(values.every(v => v === values[0]))
+      intersection[k] = values[0]
+  }
+
+  return intersection
+
+}
+
+
 
 const toSnakeCase = (str) =>
   str &&
@@ -54,19 +87,59 @@ function photonFeatureId(featureProperties, untilLayer) {
 
 // give services (their url), mapping configurations
 export class PhotonLayerGeocoder {
-  constructor(serviceConfig, mappingConfig) {
+  constructor(serviceConfig, profile) {
     this.photonUrl = serviceConfig.photon.url;
-    this.getAddressComponents = mappingConfig.getAddressComponents;
+    this.profile = profile;
   }
 
+  async makePhotonRequest(requestAddressComponents, config) {
+
+    const searchParams = new URLSearchParams({
+      q: requestAddressComponents.join(", "),
+    })
+
+    if(config?.layers != null){
+      config.layers.forEach(l => searchParams.append("layer", l))
+    }
+
+    const requestUrl = this.photonUrl + "/?" + searchParams.toString();
+  
+    const request = await fetch(requestUrl);
+    const response = await request.json();
+    return response;
+  }
+
+  // for each keep intersection and list, make decision based on that
+
   async geocode(data) {
-    const requestAddressComponents = this.getAddressComponents(data);
 
-    console.log(requestAddressComponents);
 
-    const response = await this.makePhotonRequest(requestAddressComponents);
+    // TODO handle multiple strategies
+    // apply strategy
+    data = this.profile.strategies[0].transform(data)
 
-    const feature = response.features[0]
+
+    const runs = []
+
+    // TODO get strategy tactics
+    for(const tactic of this.profile.tactics){
+      console.log(data)
+      const response = await this.makePhotonRequest(
+        tactic.getSearchComponents(data),
+        {
+          layers: tactic.layers
+        }
+      );
+
+      runs.push({
+        tactic: tactic,
+        features: response.features
+      })
+
+      console.log(JSON.stringify(response,null, 2));
+    }
+
+    const feature = runs.find(r => r.tactic.key == "ofn-be-house").features[0];
     const placeFeatureProperties = feature.properties;
 
     console.log(placeFeatureProperties);
@@ -102,17 +175,5 @@ export class PhotonLayerGeocoder {
     }
 
     return r;
-  }
-
-  async makePhotonRequest(requestAddressComponents) {
-    const requestUrl = this.photonUrl +
-      "/?" +
-      new URLSearchParams({
-        q: requestAddressComponents.join(", "),
-      });
-
-    const request = await fetch(requestUrl);
-    const response = await request.json();
-    return response;
   }
 }
