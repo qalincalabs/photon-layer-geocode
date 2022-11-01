@@ -13,34 +13,45 @@ test("Nominatim request OFN address", async () => {
   // lowest request with address details
   // then request for each and go up
 
-  const results = []
+  const runs = [];
 
-  const result = await geocoder.makeNominatimDetailsRequest(890827177, "W", {
-    addressdetails: 1,
-    namedetails: 1,
-    tagdetails: 1
-  });
-
-  results.push(result)
-
-  const addressComponents = result.address.filter(
-    (a) => a.isaddress && ["house_number", "country"].includes(a.type) == false
-  )
-
-  for (const c of addressComponents) {
-    const areaResult = await geocoder.makeNominatimDetailsRequest(c.osm_id,c.osm_type, {
-      namedetails: 1,
-      tagdetails: 1
-    });
-
-    results.push(areaResult)
+  const firstRun = {
+    query: {
+        osmid: 890827177,
+        osmtype: "W",
+        addressdetails: 1,
+        namedetails: 1,
+        tagdetails: 1,
+      }
   }
 
+  firstRun.result = await geocoder.makeNominatimDetailsRequest(firstRun.query);
+  runs.push(firstRun)
+
+  const addressComponents = firstRun.result.address.filter(
+    (a) => a.isaddress && ["house_number", "country"].includes(a.type) == false
+  );
+
+  for (const c of addressComponents) {
+
+    const run = {
+        query: {
+            osmid: c.osm_id,
+            osmtype: c.osm_type,
+            namedetails: 1,
+            tagdetails: 1,
+          }
+    }
+
+    run.result = await geocoder.makeNominatimDetailsRequest(run.query);
+
+    runs.push(run);
+  }
 
   const areas = [];
 
-  for (const r of results ) {
-    areas.push(mapOsmArea(r));
+  for (const r of runs) {
+    areas.push(mapOsmArea(r.result));
   }
 
   console.log(JSON.stringify(areas));

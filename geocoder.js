@@ -190,6 +190,13 @@ function nominatimAreasFromPlaceDetails(nominatimPlaceDetails) {
     .sort((a, b) => a.admin_level - b.admin_level);
 }
 
+export async function get(url, urlSearchParams){
+  const requestUrl = url + "?" + urlSearchParams.toString();
+  const request = await fetch(requestUrl);
+  const response = await request.json();
+  return response;
+}
+
 // give services (their url), mapping configurations
 export class PhotonLayerGeocoder {
   constructor(serviceConfig, profile) {
@@ -209,32 +216,12 @@ export class PhotonLayerGeocoder {
 
     if (config?.limit != null) searchParams.append("limit", config.limit);
 
-    const requestUrl = this.photonUrl + "?" + searchParams.toString();
-
-    console.log(requestUrl);
-
-    const request = await fetch(requestUrl);
-    const response = await request.json();
-    return response;
+    return await get(this.photonUrl, searchParams)
   }
 
-  async makeNominatimDetailsRequest(osmId, osmType, config = {}) {
-
-    const query = {
-      osmid: osmId,
-      osmtype: osmType,
-      format: "json"
-    }
-
-    const searchParams = new URLSearchParams({...config, ...query})
-
-    const requestUrl = this.nominatimUrl + "/details?" + searchParams.toString();
-
-    console.log(requestUrl);
-
-    const request = await fetch(requestUrl);
-    const response = await request.json();
-    return response;
+  async makeNominatimDetailsRequest(q) {
+    q.format = "json"
+    return await get(this.nominatimUrl + "/details", new URLSearchParams(q))
   }
 
   // for each keep intersection and list, make decision based on that
