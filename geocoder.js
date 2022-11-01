@@ -107,10 +107,94 @@ function photonFeatureId(featureProperties, untilLayer) {
   return idComponents.join("/");
 }
 
+export function mapOsmArea(osmArea) {
+  const languages = ["en", "fr", "nl", "de", "vls", "wa"];
+  const areaTypes = ["region", "province", "village", "town", "neighbourhood"];
+
+  const area = {
+    ids: ["osm/" + osmArea.osm_type + "/"+ osmArea.osm_id, 
+      "osm/place/"+ osmArea.place_id],
+    name: osmArea.localname
+  };
+
+  const types = [];
+
+  if (osmArea.admin_level == 8) {
+    types.push("municipality");
+    if (osmArea.addresstags?.postcode != null)
+      area.ids.push("be/postal_code/" + osmArea.addresstags.postcode);
+  }
+  if (osmArea.admin_level == 7) types.push("district");
+  if (osmArea.admin_level == 4) types.push("region");
+  if (osmArea.admin_level == 2) types.push("country");
+
+  if (areaTypes.includes(osmArea.extratags?.linked_place) && types.length == 0)
+    types.push(osmArea.extratags.linked_place);
+
+  if (areaTypes.includes(osmArea.type) && types.length == 0)
+    types.push(osmArea.type);
+
+  if(types.length > 0)
+    area.types = types;
+
+  if (osmArea.names != null) {
+    for (const lang of languages) {
+      if ("name:" + lang in osmArea.names){
+        if(area.translations == null)
+          area.translations = {}
+        area.translations[lang] = osmArea.names["name:" + lang];
+      }
+    }
+
+    if ("ISO3166-2" in osmArea.names)
+      area.ids.push("iso/subdivisions/" + osmArea.names["ISO3166-2"]);
+  }
+
+  if (osmArea.extratags != null) {
+    if ("ref:INS" in osmArea.extratags)
+      area.ids.push("be/ins/" + osmArea.extratags["ref:INS"]);
+    if ("ref:nuts:1" in osmArea.extratags)
+      area.ids.push("nuts/1/" + osmArea.extratags["ref:nuts:1"]);
+    if ("ref:nuts:2" in osmArea.extratags)
+      area.ids.push("nuts/2/" + osmArea.extratags["ref:nuts:2"]);
+    if ("ref:nuts:3" in osmArea.extratags)
+      area.ids.push("nuts/3/" + osmArea.extratags["ref:nuts:3"]);
+
+    if ("ISO3166-1:alpha2" in osmArea.extratags)
+      area.ids.push("iso/countries/" + osmArea.extratags["ISO3166-1:alpha2"]);
+    if ("ISO3166-1:alpha3" in osmArea.extratags)
+      area.ids.push(
+        "iso/countries/alpha3/" + osmArea.extratags["ISO3166-1:alpha3"]
+      );
+    if ("ISO3166-1:numeric" in osmArea.extratags)
+      area.ids.push(
+        "iso/countries/numeric/" + osmArea.extratags["ISO3166-1:numeric"]
+      );
+    if ("country_code_fips" in osmArea.extratags)
+      area.ids.push("fips/countries/" + osmArea.extratags["country_code_fips"]);
+  }
+
+  area.ids = area.ids.map((i) => i.toLowerCase());
+  return area;
+}
+
+function nominatimAreasFromPlaceDetails(nominatimPlaceDetails) {
+  return nominatimPlaceDetails.address
+    .filter(
+      (oa) =>
+        (oa.osm_type == "R" || oa.osm_type == "N") &&
+        oa.osm_id != null &&
+        oa.isaddress == true &&
+        (oa.type == "administrative" || oa.type == "neighbourhood")
+    )
+    .sort((a, b) => a.admin_level - b.admin_level);
+}
+
 // give services (their url), mapping configurations
 export class PhotonLayerGeocoder {
   constructor(serviceConfig, profile) {
     this.photonUrl = serviceConfig.photon.url;
+    this.nominatimUrl = serviceConfig.nominatim.url;
     this.profile = profile;
   }
 
@@ -125,7 +209,26 @@ export class PhotonLayerGeocoder {
 
     if (config?.limit != null) searchParams.append("limit", config.limit);
 
-    const requestUrl = this.photonUrl + "/?" + searchParams.toString();
+    const requestUrl = this.photonUrl + "?" + searchParams.toString();
+
+    console.log(requestUrl);
+
+    const request = await fetch(requestUrl);
+    const response = await request.json();
+    return response;
+  }
+
+  async makeNominatimDetailsRequest(osmId, osmType, config = {}) {
+
+    const query = {
+      osmid: osmId,
+      osmtype: osmType,
+      format: "json"
+    }
+
+    const searchParams = new URLSearchParams({...config, ...query})
+
+    const requestUrl = this.nominatimUrl + "/details?" + searchParams.toString();
 
     console.log(requestUrl);
 
