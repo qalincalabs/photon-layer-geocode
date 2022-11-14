@@ -1,13 +1,28 @@
-test("Open food facts mapper", () => {
+test("Open food facts mapper", async () => {
 
+  const languages = ["en", "fr", "nl", "de"];
 
-  const languages = ["en", "fr"];
-  const input = offApiResponse;
+  const url = "https://world.openfoodfacts.org/api/v0/product/"
+  const barcode = "5391533790106"
 
-  const mapping = map(offApiResponse.product, languages)
+  const requestUrl = url + barcode
+
+  const request = await fetch(requestUrl);
+  const response = await request.json();
+  
+  const fields = getLanguageUrlFields(languages)
+
+  const request1 = await fetch(requestUrl+"?fields="+fields.join(","));
+  const response1 = await request1.json();
+
+  let product = {...response.product, ...response1.product};
+
+  console.log(product)
+
+  const mapping = map(product, languages)
 
   console.log(JSON.stringify(mapping, null, 2));
-  console.log(createLanguageUrl(["en", "fr"]).join(","));
+  
 });
 
 // add to consolidation strategy the code part so it stays as aggregate until there
@@ -24,6 +39,16 @@ const tagAggregates = [
   "labels",
   "traces",
   "origins",
+];
+
+const languageUrlFields = [
+  "additives",
+  "allergens",
+  "categories",
+  "labels",
+  "traces",
+  "origins",
+  "ingredients"
 ];
 
 const mapProperties = [
@@ -48,10 +73,10 @@ const nutrientProperties = [
   "sodium",
 ];
 
-function createLanguageUrl(languages) {
+function getLanguageUrlFields(languages) {
   const fields = [];
 
-  for (const t of tagAggregates) {
+  for (const t of languageUrlFields) {
     for (const l of languages) {
       fields.push(t + "_tags_" + l);
     }
