@@ -1,7 +1,16 @@
 test("Open food facts mapper", () => {
-  console.log(JSON.stringify(map(), null, 2));
+
+
+  const languages = ["en", "fr"];
+  const input = offApiResponse;
+
+  const mapping = map(offApiResponse.product, languages)
+
+  console.log(JSON.stringify(mapping, null, 2));
   console.log(createLanguageUrl(["en", "fr"]).join(","));
 });
+
+// add to consolidation strategy the code part so it stays as aggregate until there
 
 // TODO get rid of product_name and generic_name
 // origin is country of origin
@@ -20,13 +29,13 @@ const tagAggregates = [
 const mapProperties = [
   {
     origin: "product_name",
-    destination: "name"
+    destination: "name",
   },
   {
     origin: "generic_name",
-    destination: "genericName"
-  }
-]
+    destination: "genericName",
+  },
+];
 
 const nutrientProperties = [
   "energy",
@@ -51,20 +60,11 @@ function createLanguageUrl(languages) {
   return fields;
 }
 
-// ecoscore, nova, agribalise
-// emb_codes as manufacturer ? // packages shape, material, ...
+function map(inputProduct, languages) {
 
-// at least one image -> selected images
-
-function map() {
-  const languages = ["en", "fr"];
-  const input = offApiResponse;
-  const inputProduct = input.product;
-
-  const context = {};
-
-  // origin statement
-  // country of origin ?
+  const context = {
+    units: []
+  };
 
   const product = {
     ids: ["off/products/" + inputProduct.code],
@@ -75,35 +75,7 @@ function map() {
     genericName: inputProduct.generic_name,
   };
 
-  product.ingredientStatement = inputProduct.ingredients_text
-
-  if (inputProduct.ingredients != null) {
-
-    context.ingredients = []
-    for (const val of inputProduct.ingredients) {
-
-      const ingredientIndex = inputProduct.ingredients_tags.findIndex(t => t == val.id)
-
-      context.ingredients.push({
-        ids: ["off/ingredients/" + val.id],
-        translations: languages.map(l => ({
-          key: l,
-          value: {
-            name: inputProduct["ingredients_tags_"+l][ingredientIndex]
-          }
-        }))
-      })
-    }
-
-    product.ingredientDetails = inputProduct.ingredients.map((i) => ({
-      ingredient: {
-        ids: ["off/ingredients/" + i.id],
-      },
-      sequence: i.rank,
-    }));
-
-
-  }
+  mapIngredients(inputProduct, product, context, languages);
 
   product.images = [
     {
@@ -111,51 +83,128 @@ function map() {
     },
   ];
 
-  //const quantityText = inputProduct.quantity
+  mapQuantity(inputProduct, product, context);
+  mapNutrients(inputProduct, product, context);
+  mapTags(inputProduct, product, context, languages);
+
+  context.countriesOfOrigin = context.origins;
+  delete context.origins;
+
+  mapCategoryAndClassification(inputProduct, product, context);
+
+  context.units = [...new Map(context.units.map(item =>
+    [item.ids[0], item])).values()];
+
+  context.products = [product];
+
+  return context;
+}
+
+// inputProduct, product, context, languages
+
+function mapIngredients(inputProduct, product, context, languages) {
+  product.ingredientStatement = inputProduct.ingredients_text;
+
+  if (inputProduct.ingredients == null) return;
+
+  context.ingredients = [];
+  for (const val of inputProduct.ingredients) {
+    const ingredientIndex = inputProduct.ingredients_tags.findIndex(
+      (t) => t == val.id
+    );
+
+    context.ingredients.push({
+      ids: ["off/ingredients/" + val.id],
+      translations: languages.map((l) => ({
+        key: l,
+        value: {
+          name: inputProduct["ingredients_tags_" + l][ingredientIndex],
+        },
+      })),
+    });
+  }
+
+  product.ingredientDetails = inputProduct.ingredients.map((i) => ({
+    ingredient: {
+      ids: ["off/ingredients/" + i.id],
+    },
+    sequence: i.rank,
+  }));
+}
+
+function mapQuantity(inputProduct, product, context) {
   const quantityGrOrMl = inputProduct.product_quantity;
 
-  // TODO
+  const gr = {
+    ids: ["off/units/g"],
+  }
 
   product.netWeight = {
     value: quantityGrOrMl,
-    unit: {
-      ids: ["off/units/g"],
-    },
+    unit: gr
   };
 
+  context.units.push(gr)
+}
+
+function mapNutrients(inputProduct, product, context) {
   product.nutrientDetails = [];
-  context.nutrients = []
+  context.nutrients = [];
 
   const inputNutriments = inputProduct.nutriments;
 
   for (const n of nutrientProperties) {
-
     const nutrient = {
       ids: ["off/nutrients/" + n],
+    };
+
+    const unit = {
+      ids: ["off/units/" + inputNutriments[n + "_unit"]],
     }
 
     product.nutrientDetails.push({
       nutrient: nutrient,
       quantity: {
         value: inputNutriments[n + "_100g"],
-        unit: {
-          ids: ["off/units/" + inputNutriments[n + "_unit"]],
-        },
+        unit: unit
       },
     });
 
-    context.nutrients.push(nutrient)
+    context.units.push(unit)
+    context.nutrients.push(nutrient);
   }
+}
 
+function mapCategoryAndClassification(inputProduct, product, context) {
+  context.classification = [
+    {
+      ids: ["off/categories"],
+    },
+    {
+      ids: ["nutriscore"],
+    },
+  ];
 
-  /*
+  context.categories.forEach(
+    (c) => (c.classification = { ids: ["off/categories"] })
+  );
 
-    for(const n of Object.keys(inputProduct.nutriments).filter(n => n.endsWith)){
-      product.nutrientDetails.push
-    }
+  // food groups (nutriscore)
+  inputProduct.food_groups_tags.forEach((f) => {
+    context.categories.push({
+      ids: ["nutriscore/food_group/" + f],
+      name: f,
+      classification: { ids: ["nutriscore"] },
+    });
+  });
 
-    */
+  // Food group classification
+  for (const t of tagAggregates) {
+    product[t] = context[t]?.map((e) => ({ ids: e.ids }));
+  }
+}
 
+function mapTags(inputProduct, product, context, languages) {
   for (const p of mapProperties) {
     product[p.destination] = inputProduct[p.origin];
   }
@@ -185,41 +234,6 @@ function map() {
       context[ta].push(a);
     }
   }
-
-  context.countriesOfOrigin = context.origins
-  delete context.origins
-
-  context.classification = [
-    {
-      ids: ["off/category"],
-    },
-    {
-      ids: ["nutriscore"],
-    },
-  ];
-
-  context.categories.forEach(
-    (c) => (c.classification = { ids: ["off/category"] })
-  );
-
-  // food groups (nutriscore)
-  inputProduct.food_groups_tags.forEach((f) => {
-    context.categories.push({
-      ids: ["nutriscore/food_group/" + f],
-      name: f,
-      classification: { ids: ["nutriscore"] },
-    });
-  });
-
-  // Food group classification
-
-  for (const t of tagAggregates) {
-    product[t] = context[t]?.map((e) => ({ ids: e.ids }));
-  }
-
-  context.products = [product];
-
-  return context;
 }
 
 const offApiResponse = {
@@ -951,8 +965,24 @@ const offApiResponse = {
       "en:coagulating-enzyme",
       "en:salt",
     ],
-    ingredients_tags_en:["Sheeps milk","Dairy","Milk","Rennet","Enzyme","Coagulating enzyme","Salt"],
-    ingredients_tags_fr:["Lait de brebis","Produits laitiers et dérivées","Lait","Présure","Enzyme","Enzyme coagulante","Sel"],
+    ingredients_tags_en: [
+      "Sheeps milk",
+      "Dairy",
+      "Milk",
+      "Rennet",
+      "Enzyme",
+      "Coagulating enzyme",
+      "Salt",
+    ],
+    ingredients_tags_fr: [
+      "Lait de brebis",
+      "Produits laitiers et dérivées",
+      "Lait",
+      "Présure",
+      "Enzyme",
+      "Enzyme coagulante",
+      "Sel",
+    ],
     ingredients_text: "Sheep _Milk_, Vegetarian Rennet, Salt",
     ingredients_text_en: "Sheep _Milk_, Vegetarian Rennet, Salt",
     ingredients_text_with_allergens:
@@ -1234,7 +1264,7 @@ const offApiResponse = {
     traces_from_user: "(en) Made in an area that uses Gluten and Nuts",
     traces_hierarchy: ["en:Made in an area that uses Gluten and Nuts"],
     traces_lc: "en",
-    traces_tags: ["en:gluten","en:nuts"],
+    traces_tags: ["en:gluten", "en:nuts"],
     unknown_ingredients_n: 0,
     unknown_nutrients_tags: [],
     update_key: "pack-eco",
@@ -1291,8 +1321,8 @@ const offApiResponse = {
     manufacturing_places_tags_fr: ["Glen-of-imaal", "Co-wicklow", "Ireland"],
     origins_tags_en: ["Ireland"],
     origins_tags_fr: ["Irlande"],
-    traces_tags_en:["Gluten","Nuts"],
-    traces_tags_fr:["Gluten","Fruits à coque"]
+    traces_tags_en: ["Gluten", "Nuts"],
+    traces_tags_fr: ["Gluten", "Fruits à coque"],
   },
   status: 1,
   status_verbose: "product found",
