@@ -23,7 +23,7 @@ const ofnContext = {
       total: "8.5",
       item_count: 1,
       user: {
-        id: 2997
+        id: 2997,
       },
       customer: {
         id: 2997,
@@ -47,11 +47,11 @@ const ofnContext = {
         address1: "Grand rue, 40",
         address2: "",
         state: {
-          id: 166
+          id: 166,
         },
         country: {
-          id: 29
-        }
+          id: 29,
+        },
       },
       bill_address: {
         zipcode: "6850",
@@ -62,15 +62,14 @@ const ofnContext = {
         address1: "Grand rue, 40",
         address2: "",
         state: {
-          id: 166
+          id: 166,
         },
         country: {
-          id: 29
-        }
+          id: 29,
+        },
       },
       line_items: [
         {
-          id: 251263,
           quantity: 2,
           max_quantity: null,
           price: "1.0",
@@ -84,24 +83,29 @@ const ofnContext = {
       ],
     },
   ],
+  tax_categories: [
+    {
+      id: 1,
+    },
+  ],
   orderCycles: [
     {
-        id: 2545,
+      id: 2545,
     },
   ],
   customers: [
     {
-        id: 2997,
+      id: 2997,
     },
   ],
   // map straight to workspace
   users: [
     {
-        id: 2997,
-        full_name: "Olivier Wouters",
-        email: "olivier5741@gmail.com",
-        phone: "+32999999",
-    }
+      id: 2997,
+      full_name: "Olivier Wouters",
+      email: "olivier5741@gmail.com",
+      phone: "+32999999",
+    },
   ],
   // map straight to workspace
   enterprises: [
@@ -111,7 +115,7 @@ const ofnContext = {
     },
   ],
   // map straight to shipping methods
-  shippingMethods: [
+  shipping_methods: [
     {
       id: 112,
       require_ship_address: true,
@@ -126,7 +130,7 @@ const ofnContext = {
     {
       name: "Luxembourg",
       id: 166,
-    }
+    },
   ],
   // map straight to area
   countries: [
@@ -201,7 +205,7 @@ const ofnContext = {
       available_on: "2022-10-06 11:33:36",
       permalink_live: "test-unite-2",
       tax_category: {
-        id: 1
+        id: 1,
       },
       import_date: null,
       image_url: "/noimage/product.png",
@@ -221,7 +225,7 @@ const ofnContext = {
         },
       ],
     },
-  ]
+  ],
 };
 
 const testInput = {

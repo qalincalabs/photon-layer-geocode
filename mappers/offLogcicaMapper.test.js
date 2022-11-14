@@ -1,154 +1,241 @@
 test("Open food facts mapper", () => {
-    console.log(JSON.stringify(map(),null,2));
-    console.log(createLanguageUrl(["en","fr"]).join(","))
-  });
+  console.log(JSON.stringify(map(), null, 2));
+  console.log(createLanguageUrl(["en", "fr"]).join(","));
+});
+
+// use word taxonomy instead ...
 
 const tagAggregates = [
-    "additives",
-    "allergens",
-    "brands",
-    "categories",
-    "countries",
-    "labels",
-    "manufacturing_places",
-    "traces",
-    "origins",
-    "ingredients"
-]
+  "additives",
+  "allergens",
+  "brands",
+  "categories",
+  "countries",
+  "labels",
+  "manufacturing_places",
+  "traces",
+  "origins",
+];
 
-const translatedProperties = [
-    "product_name",
-    "generic_name"
-]
+const translatedProperties = ["product_name", "generic_name"];
 
-function createLanguageUrl(languages){
-  const fields = []
+const nutrientProperties = [
+  "energy",
+  "carbohydrates",
+  "sugars",
+  "fat",
+  "saturated-fat",
+  "proteins",
+  "salt",
+  "sodium",
+];
 
-  for(const t of tagAggregates){
-    for(const l of languages){
-        fields.push(t + "_tags_" + l)
+function createLanguageUrl(languages) {
+  const fields = [];
+
+  for (const t of tagAggregates) {
+    for (const l of languages) {
+      fields.push(t + "_tags_" + l);
     }
   }
 
-  return fields
+  return fields;
 }
 
-
-// add created at
-// add creator
-// add data_sources_tags (yuka app, ...)
 // ecoscore, nova, agribalise
-// emb_codes as manufacturer ?
-/*
-food_groups: "en:cheese",
-    food_groups_tags: ["en:milk-and-dairy-products", "en:cheese"],
-*/
+// emb_codes as manufacturer ? // packages shape, material, ...
+
 // at least one image -> selected images
-// ingredients_analysis_tags
 
-/*
-    last_edit_dates_tags: ["2022-11-01", "2022-11", "2022"],
-    last_editor: "olivier5741",
-    last_image_dates_tags: ["2021-07-31", "2021-07", "2021"],
-    last_image_t: 1627739625,
-    last_modified_by: "olivier5741",
-    last_modified_t: 1667295301,
-    lc: "en",
-    link: "https://www.facebook.com/ballyhubbockfarm/",
-*/
+function map() {
+  const languages = ["en", "fr"];
+  const input = offApiResponse;
+  const inputProduct = input.product;
 
-// nutrients
+  const context = {};
 
-// pnns categories (1 and 2)
+  // origin statement
+  // country of origin ?
 
-// quantities (check if found kg g or l/L ml first remove any digit, if nothing g wins) or just consider grams
+  const product = {
+    ids: ["off/products/" + inputProduct.code],
+    barcodes: [inputProduct.code],
+    createdAt: new Date(inputProduct.created_t * 1000),
+    modifiedAt: new Date(inputProduct.last_modified_t * 1000),
+    name: inputProduct.product_name,
+    genericName: inputProduct.generic_name,
+  };
 
-function map(){
-    const languages = ["en","fr"]
-    const input = offApiResponse
-    const inputProduct = input.product
+  product.ingredientStatement = inputProduct.ingredients_text
 
-    const context = {}
+  if (inputProduct.ingredients != null) {
 
-    const product = {
-        code: inputProduct.code,
-        createdAt: new Date(inputProduct.created_t* 1000),
-        modifiedAt: new Date(inputProduct.last_modified_t* 1000),
-        product_name: inputProduct.product_name,
-        generic_name: inputProduct.generic_name,
-        ingredients: inputProduct.ingredients.map(i => ({
-            ids: ["off/ingredients/" + i.id],
-            text: i.name,
-            rank: i.rank
-        })),
-        ingredients_text: inputProduct.ingredients_text
-    }
+    context.ingredients = []
+    for (const val of inputProduct.ingredients) {
 
-    for(const p of translatedProperties){
-        product[p] = inputProduct[p]
-    }
+      const ingredientIndex = inputProduct.ingredients_tags.findIndex(t => t == val.id)
 
-    product.translations = {}
-
-    for(const l of languages){
-
-        product.translations[l] = {}
-
-        for(const p of translatedProperties){
-          product.translations[l][p] = inputProduct[p + "_"+l]
-        }
-    }
-
-    for(const ta of tagAggregates){
-
-        const tags = inputProduct[ta + "_tags"]
-
-        if(tags.length == 0)
-          continue
-
-          context[ta] = []
-
-        for(let i = 0; i < tags.length; i++){
-          const a =  {
-            ids: ["off/"+ta+"/"+ tags[i]],
-            translations: {
-
-            }
+      context.ingredients.push({
+        ids: ["off/ingredients/" + val.id],
+        translations: languages.map(l => ({
+          key: l,
+          value: {
+            name: inputProduct["ingredients_tags_"+l][ingredientIndex]
           }
-
-          for(const l of languages){
-            const nameTl = inputProduct[ta+"_tags_"+l][i]
-            if(nameTl != null)
-              a.translations[l] = {
-                name: nameTl
-              }
-          }
-
-          console.log(a)
-          context[ta].push(a)
-
-        }
+        }))
+      })
     }
 
-    if(inputProduct.pnns_groups_1 != null)
-      context.categories.push({
-        ids: ["pnns/group_1/"+inputProduct.pnns_groups_1_tags[0]],
-        name: inputProduct.pnns_groups_1
-      })
+    product.ingredientDetails = inputProduct.ingredients.map((i) => ({
+      ingredient: {
+        ids: ["off/ingredients/" + i.id],
+      },
+      sequence: i.rank,
+    }));
 
-      if(inputProduct.pnns_groups_2 != null)
-      context.categories.push({
-        ids: ["pnns/group_2/"+inputProduct.pnns_groups_1_tags[0]],
-        name: inputProduct.pnns_groups_2
-      })
 
-    for(const t of tagAggregates){
-      product[t] = context[t]?.map(e => ({ids: e.ids}))
+  }
+
+  product.images = [
+    {
+      url: inputProduct.image_front_url,
+    },
+  ];
+
+  //const quantityText = inputProduct.quantity
+  const quantityGrOrMl = inputProduct.product_quantity;
+
+  // TODO
+
+  product.netWeight = {
+    value: quantityGrOrMl,
+    unit: {
+      ids: ["off/units/g"],
+    },
+  };
+
+  product.nutrientDetails = [];
+
+  const inputNutriments = inputProduct.nutriments;
+
+  for (const n of nutrientProperties) {
+    product.nutrientDetails.push({
+      nutrient: {
+        ids: ["off/nutrients/" + n],
+      },
+      quantity: {
+        value: inputNutriments[n + "_100g"],
+        unit: {
+          ids: ["off/units/" + inputNutriments[n + "_unit"]],
+        },
+      },
+    });
+  }
+
+  /*
+
+    for(const n of Object.keys(inputProduct.nutriments).filter(n => n.endsWith)){
+      product.nutrientDetails.push
     }
 
-    context.products = [product]
+    */
 
-    return context
+  for (const p of translatedProperties) {
+    product[p] = inputProduct[p];
+  }
+
+  product.translations = {};
+
+  for (const l of languages) {
+    product.translations[l] = {};
+
+    for (const p of translatedProperties) {
+      product.translations[l][p] = inputProduct[p + "_" + l];
+    }
+  }
+
+  for (const ta of tagAggregates) {
+    const tags = inputProduct[ta + "_tags"];
+
+    if (tags.length == 0) continue;
+
+    context[ta] = [];
+
+    for (let i = 0; i < tags.length; i++) {
+      const a = {
+        ids: ["off/" + ta + "/" + tags[i]],
+        translations: {},
+      };
+
+      for (const l of languages) {
+        const nameTl = inputProduct[ta + "_tags_" + l][i];
+        if (nameTl != null)
+          a.translations[l] = {
+            name: nameTl,
+          };
+      }
+
+      console.log(a);
+      context[ta].push(a);
+    }
+  }
+
+  context.classification = [
+    {
+      ids: ["off/category"],
+    },
+    {
+      ids: ["pnns"],
+    },
+    {
+      ids: ["nutriscore"],
+    },
+  ];
+
+  context.categories.forEach(
+    (c) => (c.classification = { ids: ["off/category"] })
+  );
+
+  // PNNS classification
+
+  // food group -> pnns/gs1 pnns/gs2
+
+  context.categories.push({
+    ids: ["pnns/group_1/" + inputProduct.pnns_groups_1_tags[0]],
+    name: inputProduct.pnns_groups_1,
+    classification: { ids: ["pnns"] },
+  });
+
+  context.categories.push({
+    ids: ["pnns/group_2/" + inputProduct.pnns_groups_2_tags[0]],
+    name: inputProduct.pnns_groups_2,
+    classification: { ids: ["pnns"] },
+  });
+
+  // food groups
+  inputProduct.food_groups_tags.forEach((f) => {
+    context.categories.push({
+      ids: ["nutriscore/food_group/" + f],
+      name: f,
+      classification: { ids: ["nutriscore"] },
+    });
+  });
+
+  context.categories.push({
+    ids: ["pnns/group_2/" + inputProduct.pnns_groups_1_tags[0]],
+    name: inputProduct.pnns_groups_2,
+    classification: { ids: ["pnns"] },
+  });
+
+  // Food group classification
+
+  for (const t of tagAggregates) {
+    product[t] = context[t]?.map((e) => ({ ids: e.ids }));
+  }
+
+  context.products = [product];
+
+  return context;
 }
 
 const offApiResponse = {
@@ -880,6 +967,8 @@ const offApiResponse = {
       "en:coagulating-enzyme",
       "en:salt",
     ],
+    ingredients_tags_en:["Sheeps milk","Dairy","Milk","Rennet","Enzyme","Coagulating enzyme","Salt"],
+    ingredients_tags_fr:["Lait de brebis","Produits laitiers et dérivées","Lait","Présure","Enzyme","Enzyme coagulante","Sel"],
     ingredients_text: "Sheep _Milk_, Vegetarian Rennet, Salt",
     ingredients_text_en: "Sheep _Milk_, Vegetarian Rennet, Salt",
     ingredients_text_with_allergens:
@@ -1167,87 +1256,59 @@ const offApiResponse = {
     update_key: "pack-eco",
     vitamins_tags: [],
     additives_tags_en: [],
-  additives_tags_fr: [],
-  allergens_tags_en: [
-    "Milk"
-  ],
-  allergens_tags_fr: [
-    "Lait"
-  ],
-  brands_tags_en: [
-    "Ballyhubbock-farm"
-  ],
-  brands_tags_fr: [
-    "Ballyhubbock-farm"
-  ],
-  categories_tags_en: [
-    "Dairies",
-    "Fermented foods",
-    "Fermented milk products",
-    "Cheeses",
-    "Meat alternatives",
-    "Cypriot cheeses",
-    "Grilling cheeses",
-    "Halloumi"
-  ],
-  categories_tags_fr: [
-    "Produits laitiers",
-    "Produits fermentés",
-    "Produits laitiers fermentés",
-    "Fromages",
-    "Alternatives à la viande",
-    "en:Cypriot cheeses",
-    "Fromages à griller",
-    "Halloumi"
-  ],
-  countries_tags_en: [
-    "Ireland"
-  ],
-  countries_tags_fr: [
-    "Irlande"
-  ],
-  ingredients_tags_en: [
-    "Sheeps milk",
-    "Dairy",
-    "Milk",
-    "Rennet",
-    "Enzyme",
-    "Coagulating enzyme",
-    "Salt"
-  ],
-  ingredients_tags_fr: [
-    "Lait de brebis",
-    "Produits laitiers et dérivées",
-    "Lait",
-    "Présure",
-    "Enzyme",
-    "Enzyme coagulante",
-    "Sel"
-  ],
-  labels_tags_en: [],
-  labels_tags_fr: [],
-  manufacturing_places_tags_en: [
-    "Glen-of-imaal",
-    "Co-wicklow",
-    "Ireland"
-  ],
-  manufacturing_places_tags_fr: [
-    "Glen-of-imaal",
-    "Co-wicklow",
-    "Ireland"
-  ],
-  origins_tags_en: [
-    "Ireland"
-  ],
-  origins_tags_fr: [
-    "Irlande"
-  ],
-  traces_tags_en: [
-    "Made-in-an-area-that-uses-gluten-and-nuts"
-  ],
-  traces_tags_fr: [
-    "en:made-in-an-area-that-uses-gluten-and-nuts"
-  ]
+    additives_tags_fr: [],
+    allergens_tags_en: ["Milk"],
+    allergens_tags_fr: ["Lait"],
+    brands_tags_en: ["Ballyhubbock-farm"],
+    brands_tags_fr: ["Ballyhubbock-farm"],
+    categories_tags_en: [
+      "Dairies",
+      "Fermented foods",
+      "Fermented milk products",
+      "Cheeses",
+      "Meat alternatives",
+      "Cypriot cheeses",
+      "Grilling cheeses",
+      "Halloumi",
+    ],
+    categories_tags_fr: [
+      "Produits laitiers",
+      "Produits fermentés",
+      "Produits laitiers fermentés",
+      "Fromages",
+      "Alternatives à la viande",
+      "en:Cypriot cheeses",
+      "Fromages à griller",
+      "Halloumi",
+    ],
+    countries_tags_en: ["Ireland"],
+    countries_tags_fr: ["Irlande"],
+    ingredients_tags_en: [
+      "Sheeps milk",
+      "Dairy",
+      "Milk",
+      "Rennet",
+      "Enzyme",
+      "Coagulating enzyme",
+      "Salt",
+    ],
+    ingredients_tags_fr: [
+      "Lait de brebis",
+      "Produits laitiers et dérivées",
+      "Lait",
+      "Présure",
+      "Enzyme",
+      "Enzyme coagulante",
+      "Sel",
+    ],
+    labels_tags_en: [],
+    labels_tags_fr: [],
+    manufacturing_places_tags_en: ["Glen-of-imaal", "Co-wicklow", "Ireland"],
+    manufacturing_places_tags_fr: ["Glen-of-imaal", "Co-wicklow", "Ireland"],
+    origins_tags_en: ["Ireland"],
+    origins_tags_fr: ["Irlande"],
+    traces_tags_en: ["Made-in-an-area-that-uses-gluten-and-nuts"],
+    traces_tags_fr: ["en:made-in-an-area-that-uses-gluten-and-nuts"],
   },
   status: 1,
   status_verbose: "product found",
