@@ -3,21 +3,30 @@ test("Open food facts mapper", () => {
   console.log(createLanguageUrl(["en", "fr"]).join(","));
 });
 
+// TODO get rid of product_name and generic_name
+// origin is country of origin
+
 // use word taxonomy instead ...
 
 const tagAggregates = [
   "additives",
   "allergens",
-  "brands",
   "categories",
-  "countries",
   "labels",
-  "manufacturing_places",
   "traces",
   "origins",
 ];
 
-const translatedProperties = ["product_name", "generic_name"];
+const mapProperties = [
+  {
+    origin: "product_name",
+    destination: "name"
+  },
+  {
+    origin: "generic_name",
+    destination: "genericName"
+  }
+]
 
 const nutrientProperties = [
   "energy",
@@ -115,14 +124,18 @@ function map() {
   };
 
   product.nutrientDetails = [];
+  context.nutrients = []
 
   const inputNutriments = inputProduct.nutriments;
 
   for (const n of nutrientProperties) {
+
+    const nutrient = {
+      ids: ["off/nutrients/" + n],
+    }
+
     product.nutrientDetails.push({
-      nutrient: {
-        ids: ["off/nutrients/" + n],
-      },
+      nutrient: nutrient,
       quantity: {
         value: inputNutriments[n + "_100g"],
         unit: {
@@ -130,7 +143,10 @@ function map() {
         },
       },
     });
+
+    context.nutrients.push(nutrient)
   }
+
 
   /*
 
@@ -140,18 +156,8 @@ function map() {
 
     */
 
-  for (const p of translatedProperties) {
-    product[p] = inputProduct[p];
-  }
-
-  product.translations = {};
-
-  for (const l of languages) {
-    product.translations[l] = {};
-
-    for (const p of translatedProperties) {
-      product.translations[l][p] = inputProduct[p + "_" + l];
-    }
+  for (const p of mapProperties) {
+    product[p.destination] = inputProduct[p.origin];
   }
 
   for (const ta of tagAggregates) {
@@ -180,12 +186,12 @@ function map() {
     }
   }
 
+  context.countriesOfOrigin = context.origins
+  delete context.origins
+
   context.classification = [
     {
       ids: ["off/category"],
-    },
-    {
-      ids: ["pnns"],
     },
     {
       ids: ["nutriscore"],
@@ -196,35 +202,13 @@ function map() {
     (c) => (c.classification = { ids: ["off/category"] })
   );
 
-  // PNNS classification
-
-  // food group -> pnns/gs1 pnns/gs2
-
-  context.categories.push({
-    ids: ["pnns/group_1/" + inputProduct.pnns_groups_1_tags[0]],
-    name: inputProduct.pnns_groups_1,
-    classification: { ids: ["pnns"] },
-  });
-
-  context.categories.push({
-    ids: ["pnns/group_2/" + inputProduct.pnns_groups_2_tags[0]],
-    name: inputProduct.pnns_groups_2,
-    classification: { ids: ["pnns"] },
-  });
-
-  // food groups
+  // food groups (nutriscore)
   inputProduct.food_groups_tags.forEach((f) => {
     context.categories.push({
       ids: ["nutriscore/food_group/" + f],
       name: f,
       classification: { ids: ["nutriscore"] },
     });
-  });
-
-  context.categories.push({
-    ids: ["pnns/group_2/" + inputProduct.pnns_groups_1_tags[0]],
-    name: inputProduct.pnns_groups_2,
-    classification: { ids: ["pnns"] },
   });
 
   // Food group classification
@@ -1250,7 +1234,7 @@ const offApiResponse = {
     traces_from_user: "(en) Made in an area that uses Gluten and Nuts",
     traces_hierarchy: ["en:Made in an area that uses Gluten and Nuts"],
     traces_lc: "en",
-    traces_tags: ["en:made-in-an-area-that-uses-gluten-and-nuts"],
+    traces_tags: ["en:gluten","en:nuts"],
     unknown_ingredients_n: 0,
     unknown_nutrients_tags: [],
     update_key: "pack-eco",
@@ -1307,8 +1291,8 @@ const offApiResponse = {
     manufacturing_places_tags_fr: ["Glen-of-imaal", "Co-wicklow", "Ireland"],
     origins_tags_en: ["Ireland"],
     origins_tags_fr: ["Irlande"],
-    traces_tags_en: ["Made-in-an-area-that-uses-gluten-and-nuts"],
-    traces_tags_fr: ["en:made-in-an-area-that-uses-gluten-and-nuts"],
+    traces_tags_en:["Gluten","Nuts"],
+    traces_tags_fr:["Gluten","Fruits à coque"]
   },
   status: 1,
   status_verbose: "product found",
