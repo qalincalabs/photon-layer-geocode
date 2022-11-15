@@ -1,12 +1,3 @@
-export class OfnLogcicaMapper {
-    constructor() {
-    }
-
-    map(data){
-      return data
-    }
-}
-
 function uniqByKeepLast(data, key) {
   return [...new Map(data.map((x) => [key(x), x])).values()];
 }
@@ -37,7 +28,7 @@ function getInformalQuantity(quantityText){
   }
 }
 
-function contextFromEvent(event) {
+export function contextFromEvent(event) {
   const context = {};
 
   const shippingAddress = event.data.shipping_address;
@@ -399,3 +390,6 @@ function contextFromEvent(event) {
   ];
   return context;
 }
+
+const OfnLogcicaMapper = () => {}
+export default OfnLogcicaMapper;

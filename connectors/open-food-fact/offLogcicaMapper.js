@@ -45,7 +45,7 @@ export function mapProduct(inputProduct, config) {
 
   const product = {
     ids: ["off/products/" + inputProduct.code],
-    barcodes: [inputProduct.code],
+    barcode: inputProduct.code,
     createdAt: new Date(inputProduct.created_t * 1000),
     modifiedAt: new Date(inputProduct.last_modified_t * 1000),
     name: inputProduct.product_name,
