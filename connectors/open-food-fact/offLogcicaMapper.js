@@ -105,6 +105,7 @@ function mapIngredients(inputProduct, product, context, languages) {
       ids: ["off/ingredients/" + i.id],
     },
     sequence: i.rank,
+    contentPercentage: i.percent
   }));
 }
 

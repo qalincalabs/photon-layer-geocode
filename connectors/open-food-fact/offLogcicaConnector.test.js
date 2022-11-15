@@ -5,7 +5,7 @@ test("Open food facts connector", async () => {
   const inputContext = {
     products: [
       {
-        barcode: "5391533790106",
+        barcode: "5430001830040",
       },
     ],
   };
