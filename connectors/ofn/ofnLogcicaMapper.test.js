@@ -3,47 +3,63 @@ import * as mapper from "./ofnLogcicaMapper.js";
 test("Open food network mapper", async () => {
   // const response = mapper.contextFromEvent(testInput)
   const prepared = prepareOrderBeforeExploding(ofnOrderSample);
-  const exploded = explodeOrder(prepared)
+  console.log(JSON.stringify(prepared, null, 2));
+  const exploded = explodeOrder(prepared);
 
   console.log(JSON.stringify(exploded, null, 2));
 });
 
-function explodeOrder(order1){
-
-  const order = preparedOrderSample
+function explodeOrder(order) {
 
   const context = {
-    enterprises: [
-      order.distributor
-    ],
-    order_cycles: [
-      order.order_cycle
-    ],
-    shipping_methods: [
-      order.shipping_method
-    ],
-    users: [
-      order.user
-    ],
-    customers: [
-      order.customer
-    ]
-  }
+    enterprises: [order.distributor],
+    order_cycles: [order.order_cycle],
+    shipping_methods: [order.shipping_method],
+    users: [order.user],
+    customers: [order.customer],
+  };
 
   order.distributor = {
-    id: order.distributor.id
-  }
+    id: order.distributor.id,
+  };
 
   order.shipping_method = {
-    id: order.shipping_method.id
+    id: order.shipping_method.id,
+  };
+
+  order.user = {
+    id: order.user.id,
+  };
+
+  context.order = order;
+
+  context.countries = [];
+  context.states = [];
+
+  ["ship_address", "bill_address"].forEach((a) => {
+    const country = order[a].country
+    context.countries.push(country);
+    order[a].country = { id: country.id };
+
+    const state = order[a].state
+    context.states.push(state);
+    order[a].state = { id: state.id };
+  });
+
+  context.variants = []
+  context.products = []
+
+  for(const line of order.line_items){
+
+    context.products.push(line.variant.product)
+    line.variant.product = {ids: line.variant.product.ids}
+    
+    context.variants.push(line.variant)
+
+    line.variant = { id: line.variant.id }
   }
 
-  order.user = order.user.id
-
-
-  context.order = order
-
-  return context
+  return context;
 }
 
 // TODO adjustments not handled
@@ -100,6 +116,7 @@ function prepareOrderBeforeExploding(order) {
     delete line.tax_category_id;
 
     line.variant.product = {
+      ids: ["ofn/"+order.distributor.id+"/products/"+line.variant.product_name], // TODO sluggify
       name: line.variant.product_name,
     };
 
@@ -619,6 +636,9 @@ const preparedOrderSample = {
         unit_price_price: "0.0",
         unit_price_unit: " unité",
         product: {
+          ids: [
+            "ofn/591/Chocolat noir sans sucre"
+          ],
           name: "Chocolat noir sans sucre"
         }
       },
