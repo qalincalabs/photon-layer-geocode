@@ -33,69 +33,95 @@ export function mapContext(ofnContext) {
 
   const logcicaContext = {};
 
-  logcicaContext.areas = [];
+  const mapCodes = (el, target) => ({
+    ids: el.ids,
+    name: el.name,
+    list: {
+      ids: [ofn_be + "/" + target.key],
+    },
+  });
 
-  logcicaContext.areas.push(
-    ofnContext.countries.map((c) => ({
-      ids: c.ids,
-      name: c.name,
-      list: {
-        ids: [ofn_be + "/countries"],
+  const mapEnterpriseOwner = (enterprise) => ({
+    workspace: {
+      ids: enterprise.ids,
+    },
+  });
+
+  const quickMap = (targetKey, destinationKey, map) => ({
+    target: { key: targetKey },
+    destination: { key: destinationKey },
+    map: map,
+  });
+
+  const contextMapping = {
+    mappings: [
+      quickMap("countries", "codes", mapCodes),
+      quickMap("states", "codes", mapCodes),
+      quickMap("enterprises", "workspaces", (el) => ({
+        ids: el.ids,
+        name: el.name,
+      })),
+      quickMap("users", "workspaces", (el) => ({
+        ids: el.ids,
+      })),
+      {
+        target: { key: "shipping_methods" },
+        destination: { key: "shippingMethods" },
+        map: (el) => ({
+          ids: el.ids,
+          // type: el.type, TODO
+          name: el.name,
+          description: el.description,
+          owner: mapEnterpriseOwner(el.enterprise),
+        }),
       },
-    }))
-  );
-
-  logcicaContext.areas.push(
-    ofnContext.states.map((c) => ({
-      ids: c.ids,
-      name: c.name,
-      list: {
-        ids: [ofn_be + "/states"],
+      {
+        target: { key: "order_cycles" },
+        destination: { key: "salesSessions" },
+        map: (el) => ({
+          ids: el.ids,
+          owner: mapEnterpriseOwner(el.enterprise),
+        }),
       },
-    }))
-  );
-
-  logcicaContext.workspaces = [{
-    ids: ["logcica/workspaces/ofn_be"],
-  }]
-
-  logcicaContext.workspaces.push(ofnContext.enterprises.map(e => ({
-    ids: e.ids,
-    name: e.name
-  })))
-
-  // TODO unanonymise
-  logcicaContext.workspaces.push(ofnContext.users.map(u => ({
-    ids: u.ids
-  })))
-
-  /*
-  logcicaContext.shippingMethods.push(ofnContext.shipping_methods.map(s => {
-    ids: s.ids,
-    
-  }))
-
-  const shippingMethod = {
-    ids: [
-      "ofn_be/shipping_method/" + event.data.shipping_method.id,
-      "https://openfoodnetwork.be/shippingmethods/" +
-        event.data.shipping_method.id,
+      {
+        target: { key: "order_cycles" },
+        destination: { key: "catalogs" },
+        map: (el) => ({
+          ids: el.ids,
+          owner: mapEnterpriseOwner(el.enterprise),
+          // TODO add catalogItem
+        }),
+      },
     ],
-    type: event.data.shipping_method.type,
-    name: event.data.shipping_method.name,
-    description: event.data.shipping_method.description,
-    owner: {
-      workspace: {
-        ids: ["ofn_be/enterprise/" + event.enterprise_id],
+  };
+
+  logcicaContext.workspaces = [{ ids: ["logcica/workspaces/ofn_be"] }];
+
+  logcicaContext.productClassifications = [
+    {
+      ids: ["logcica/product_classifications/ofn_be"],
+      owner: {
+        workspace: {
+          ids: ["logcica/workspace/ofn_be"],
+        },
       },
     },
-  };
-  */
+  ];
+
+  for (const mapping of contextMapping.mappings) {
+    const mapped = ofnContext[mapping.target.key].map((e) =>
+      mapping.map(e, mapping.target)
+    );
+    console.log(mapped);
+    logcicaContext[mapping.destination.key] = (
+      logcicaContext[mapping.destination.key] ?? []
+    ).concat(mapped);
+  }
 
   // TODO customers and suppliers
   // TODO places
 
-  return logcicaContext
+  return logcicaContext;
 }
 
 export function contextFromEvent(event) {
@@ -176,22 +202,6 @@ export function contextFromEvent(event) {
 
   // todo add type : delivery or pickup (require shipping address ?)
 
-  const shippingMethod = {
-    ids: [
-      "ofn_be/shipping_method/" + event.data.shipping_method.id,
-      "https://openfoodnetwork.be/shippingmethods/" +
-        event.data.shipping_method.id,
-    ],
-    type: event.data.shipping_method.type,
-    name: event.data.shipping_method.name,
-    description: event.data.shipping_method.description,
-    owner: {
-      workspace: {
-        ids: ["ofn_be/enterprise/" + event.enterprise_id],
-      },
-    },
-  };
-
   if (shippingMethod.type == "pickup") {
     shippingMethod.pickup = {
       place: {
@@ -201,39 +211,6 @@ export function contextFromEvent(event) {
   }
 
   context.shippingMethods = [shippingMethod];
-
-  context.salesSessions = [
-    {
-      ids: ["ofn_be/order_cycle/" + event.data.order_cycle.id],
-      owner: {
-        workspace: {
-          ids: ["ofn_be/enterprise/" + event.enterprise_id],
-        },
-      },
-    },
-  ];
-
-  context.catalogs = [
-    {
-      ids: ["ofn_be/order_cycle/" + event.data.order_cycle.id],
-      owner: {
-        workspace: {
-          ids: ["ofn_be/enterprise/" + event.enterprise_id],
-        },
-      },
-    },
-  ];
-
-  context.productClassifications = [
-    {
-      ids: ["logcica/product_classification/ofn_be"],
-      owner: {
-        workspace: {
-          ids: ["logcica/workspace/ofn_be"],
-        },
-      },
-    },
-  ];
 
   context.productCategories = uniqByKeepLast(
     event.data.line_items.map((i) => ({
