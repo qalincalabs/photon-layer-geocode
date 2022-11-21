@@ -45,7 +45,7 @@ export class OffLogcicaConnector {
   
     let product = {...response.product, ...response1.product};
 
-    console.log(product.ingredients)
+    console.log(product)
 
     console.log(this.languages)
     const mappedProduct = mapper.mapProduct(product, {languages: this.languages})
