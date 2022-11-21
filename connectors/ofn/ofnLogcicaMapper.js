@@ -2,30 +2,100 @@ function uniqByKeepLast(data, key) {
   return [...new Map(data.map((x) => [key(x), x])).values()];
 }
 
-function getInformalQuantity(quantityText){
-  const quantityTextPattern = /^\d+(\.\d*)?[ ]?[^.^,]+$/
-  const quantityWeightOrVolumePattern = /^\d+(\.\d*)?[ ]?(g|G|ml|mL|kg|Kg|KG|l|L)$/
-  const quantityExtractValuePattern = /^\d+(\.\d*)?/
+function getInformalQuantity(quantityText) {
+  const quantityTextPattern = /^\d+(\.\d*)?[ ]?[^.^,]+$/;
+  const quantityWeightOrVolumePattern =
+    /^\d+(\.\d*)?[ ]?(g|G|ml|mL|kg|Kg|KG|l|L)$/;
+  const quantityExtractValuePattern = /^\d+(\.\d*)?/;
 
-  const isWeightOrVolmue = quantityWeightOrVolumePattern.test(quantityText)
+  const isWeightOrVolmue = quantityWeightOrVolumePattern.test(quantityText);
 
-  if(isWeightOrVolmue){
-    console.log("Weight or volume")
-    return null
+  if (isWeightOrVolmue) {
+    console.log("Weight or volume");
+    return null;
   }
 
-  if(quantityTextPattern.test(quantityText) == false)
-    return null
-  
-  const quantityValue = quantityExtractValuePattern.exec(quantityText)[0]
-  const quantityUnitText = quantityText.slice(quantityValue.length).trim()
-  
+  if (quantityTextPattern.test(quantityText) == false) return null;
+
+  const quantityValue = quantityExtractValuePattern.exec(quantityText)[0];
+  const quantityUnitText = quantityText.slice(quantityValue.length).trim();
+
   return {
     value: quantityValue,
     unit: {
-      text: quantityUnitText
-    }
-  }
+      text: quantityUnitText,
+    },
+  };
+}
+
+export function mapContext(ofnContext) {
+  const ofn_be = "ofn_be";
+
+  const logcicaContext = {};
+
+  logcicaContext.areas = [];
+
+  logcicaContext.areas.push(
+    ofnContext.countries.map((c) => ({
+      ids: c.ids,
+      name: c.name,
+      list: {
+        ids: [ofn_be + "/countries"],
+      },
+    }))
+  );
+
+  logcicaContext.areas.push(
+    ofnContext.states.map((c) => ({
+      ids: c.ids,
+      name: c.name,
+      list: {
+        ids: [ofn_be + "/states"],
+      },
+    }))
+  );
+
+  logcicaContext.workspaces = [{
+    ids: ["logcica/workspaces/ofn_be"],
+  }]
+
+  logcicaContext.workspaces.push(ofnContext.enterprises.map(e => ({
+    ids: e.ids,
+    name: e.name
+  })))
+
+  // TODO unanonymise
+  logcicaContext.workspaces.push(ofnContext.users.map(u => ({
+    ids: u.ids
+  })))
+
+  /*
+  logcicaContext.shippingMethods.push(ofnContext.shipping_methods.map(s => {
+    ids: s.ids,
+    
+  }))
+
+  const shippingMethod = {
+    ids: [
+      "ofn_be/shipping_method/" + event.data.shipping_method.id,
+      "https://openfoodnetwork.be/shippingmethods/" +
+        event.data.shipping_method.id,
+    ],
+    type: event.data.shipping_method.type,
+    name: event.data.shipping_method.name,
+    description: event.data.shipping_method.description,
+    owner: {
+      workspace: {
+        ids: ["ofn_be/enterprise/" + event.enterprise_id],
+      },
+    },
+  };
+  */
+
+  // TODO customers and suppliers
+  // TODO places
+
+  return logcicaContext
 }
 
 export function contextFromEvent(event) {
@@ -33,23 +103,12 @@ export function contextFromEvent(event) {
 
   const order = event.data;
 
-  // add region et quartier
-  context.codes = [
-    {
-      ids: ["ofn_be/country/" + order.shippingAddress.country.id],
-      name: "Belgium",
-      list: {
-        ids: ["iso/country"],
-      },
-    },
-  ];
-
   // anonymise
   const mapAddress = (address) => ({
     street: [address.street_address_1, address.street_address_2]
       .filter(Boolean)
       .join(", ")
-      .replace(/[0-9]/g, '')
+      .replace(/[0-9]/g, "")
       .replace(/[^\w\s\']|_/g, "")
       .replace(/\s+/g, " ")
       .trim(),
@@ -66,7 +125,7 @@ export function contextFromEvent(event) {
       ids: ["ofn_be/address/" + order.shippingAddress.id],
       services: ["shipping"],
       private: true,
-      address: mapAddress(order.shippingAddress)
+      address: mapAddress(order.shippingAddress),
     },
     {
       ids: ["ofn_be/address/" + order.billingAddress.id],
@@ -75,29 +134,6 @@ export function contextFromEvent(event) {
       address: mapAddress(order.billingAddress),
     },
   ];
-
-  context.workspaces = [
-    {
-      ids: ["ofn_be/user/" + event.user_id],
-      //name: event.user_name,
-    },
-    {
-      ids: ["ofn_be/enterprise/" + event.enterprise_id],
-      name: event.enterprise_name,
-    },
-    {
-      ids: ["logcica/workspace/ofn_be"],
-    },
-  ];
-
-  const producerWorkspaces = event.data.line_items.map((i) => ({
-    ids: ["ofn_be/enterprise/" + i.product.producer.id],
-    name: i.product.producer.name,
-  }));
-
-  context.workspaces = context.workspaces.concat(producerWorkspaces);
-
-  context.workspaces = uniqByKeepLast(context.workspaces, (x) => x.ids[0]);
 
   context.customers = [
     {
@@ -141,27 +177,27 @@ export function contextFromEvent(event) {
   // todo add type : delivery or pickup (require shipping address ?)
 
   const shippingMethod = {
-      ids: [
-        "ofn_be/shipping_method/" + event.data.shipping_method.id,
-        "https://openfoodnetwork.be/shippingmethods/" +
-          event.data.shipping_method.id,
-      ],
-      type: event.data.shipping_method.type,
-      name: event.data.shipping_method.name,
-      description: event.data.shipping_method.description,
-      owner: {
-        workspace: {
-          ids: ["ofn_be/enterprise/" + event.enterprise_id],
-        },
+    ids: [
+      "ofn_be/shipping_method/" + event.data.shipping_method.id,
+      "https://openfoodnetwork.be/shippingmethods/" +
+        event.data.shipping_method.id,
+    ],
+    type: event.data.shipping_method.type,
+    name: event.data.shipping_method.name,
+    description: event.data.shipping_method.description,
+    owner: {
+      workspace: {
+        ids: ["ofn_be/enterprise/" + event.enterprise_id],
       },
-    }
+    },
+  };
 
-  if(shippingMethod.type == "pickup"){
+  if (shippingMethod.type == "pickup") {
     shippingMethod.pickup = {
       place: {
-        ids: ["ofn_be/address/" + order.shippingAddress.id]
-      }
-    }
+        ids: ["ofn_be/address/" + order.shippingAddress.id],
+      },
+    };
   }
 
   context.shippingMethods = [shippingMethod];
@@ -175,7 +211,7 @@ export function contextFromEvent(event) {
         },
       },
     },
-  ]
+  ];
 
   context.catalogs = [
     {
@@ -194,7 +230,7 @@ export function contextFromEvent(event) {
       owner: {
         workspace: {
           ids: ["logcica/workspace/ofn_be"],
-        }
+        },
       },
     },
   ];
@@ -225,8 +261,7 @@ export function contextFromEvent(event) {
   // TODO get the producer id !!
   context.products = uniqByKeepLast(
     event.data.line_items.map((i) => {
-    
-     const product = {
+      const product = {
         ids: [
           "ofn_be/variant/" + i.variant.id,
           "ofn_be/variant/id/" + i.variant.id,
@@ -245,26 +280,26 @@ export function contextFromEvent(event) {
             ids: ["ofn_be/enterprise/" + i.product.producer.id],
           },
         },
-        quantity: getInformalQuantity(i.variant.quantityText)
-      }
+        quantity: getInformalQuantity(i.variant.quantityText),
+      };
 
-      if(i.variant.netWeight)
+      if (i.variant.netWeight)
         product.netWeight = {
           value: i.variant.netWeight.toString(),
           unit: {
-            code: "GRM"
-          }
-        }
+            code: "GRM",
+          },
+        };
 
-      if(i.variant.netVolume)
+      if (i.variant.netVolume)
         product.netWeight = {
           value: i.variant.netVolume.toString(),
           unit: {
-            code: "MLT"
-          }
-        }
+            code: "MLT",
+          },
+        };
 
-      return product
+      return product;
     }),
     (x) => x.ids[0]
   );
@@ -272,19 +307,24 @@ export function contextFromEvent(event) {
   context.offers = uniqByKeepLast(
     event.data.line_items.map((i) => ({
       ids: [
-        "ofn_be/enterprise/" + event.enterprise_id + "/variant/" + i.variant.id + "/price/" + i.variant.price 
+        "ofn_be/enterprise/" +
+          event.enterprise_id +
+          "/variant/" +
+          i.variant.id +
+          "/price/" +
+          i.variant.price,
       ],
       product: {
         ids: ["ofn_be/variant/" + i.variant.id],
       },
       price: {
-        value: i.variant.price
+        value: i.variant.price,
       },
       owner: {
         workspace: {
           ids: ["ofn_be/enterprise/" + event.enterprise_id],
         },
-      }
+      },
     })),
     (x) => x.ids[0]
   );
@@ -306,13 +346,19 @@ export function contextFromEvent(event) {
       },
       offers: [
         {
-          ids: ["ofn_be/enterprise/" + event.enterprise_id + "/variant/" + i.variant.id + "/price/" + i.variant.price ]
-        }
-      ]
+          ids: [
+            "ofn_be/enterprise/" +
+              event.enterprise_id +
+              "/variant/" +
+              i.variant.id +
+              "/price/" +
+              i.variant.price,
+          ],
+        },
+      ],
     })),
     (x) => x.ids[0]
   );
-
 
   context.orders = [
     {
@@ -365,7 +411,7 @@ export function contextFromEvent(event) {
         ids: ["ofn_be/order_cycle/" + event.data.order_cycle.id],
       },
       totalPrice: {
-        value: order.total_price
+        value: order.total_price,
       },
       lines: order.line_items.map((i) => ({
         name: i.variant.name,
@@ -378,10 +424,17 @@ export function contextFromEvent(event) {
           ids: ["ofn_be/variant/" + i.variant.id],
         },
         offer: {
-          ids: ["ofn_be/enterprise/" + event.enterprise_id + "/variant/" + i.variant.id + "/price/" + i.variant.price ]
+          ids: [
+            "ofn_be/enterprise/" +
+              event.enterprise_id +
+              "/variant/" +
+              i.variant.id +
+              "/price/" +
+              i.variant.price,
+          ],
         },
         quantity: {
-          value: i.quantity.toString()
+          value: i.quantity.toString(),
         },
       })),
     },
@@ -389,5 +442,5 @@ export function contextFromEvent(event) {
   return context;
 }
 
-const OfnLogcicaMapper = () => {}
+const OfnLogcicaMapper = () => {};
 export default OfnLogcicaMapper;

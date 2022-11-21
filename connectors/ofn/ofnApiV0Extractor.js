@@ -44,12 +44,14 @@ export function cleanUpOrder(order) {
   for (const line of order.line_items) {
     delete line.order_id;
     delete line.tax_category_id;
-    line.variant = { id: line.variant.id };
+    line.variant = {
+      id: line.variant.id,
+    };
   }
 
   // TODO not supported
-  delete order.payments
-  delete order.adjustments
+  delete order.payments;
+  delete order.adjustments;
 
   return order;
 }
@@ -94,7 +96,7 @@ export function cleanUpProduct(product) {
 export function extract(context) {
   const contextMapping = defineContextExtraction();
   const extraction = applyExtraction(contextMapping, context);
-  return extraction
+  return extraction;
 }
 
 function applyExtraction(contextMapping, context) {
@@ -102,35 +104,36 @@ function applyExtraction(contextMapping, context) {
 
   for (const ext of contextMapping.extractions) {
     const extracts = ext.extractAll(context);
-    extracts.forEach((e) =>
-      contextMapping.default.transformOneUuid(e, ext, contextMapping)
-    );
+    extracts.forEach((e) => {
+      contextMapping.default.transformOneUuid(e, ext, contextMapping);
+      if (ext.distributeRelationships != null)
+        ext.distributeRelationships(e, logcicaContext);
+    });
+
     const copies = extracts.map((e) => Object.assign({}, e));
 
     extracts.forEach((e) => contextMapping.default.cleanUpOne(e));
-      
+
     // TODO remove duplicates from copies ... consolidate ?
     logcicaContext[ext.destination.key] = (
       logcicaContext[ext.destination.key] ?? []
     ).concat(copies);
 
-    const a = []
+    const a = [];
 
-    for(const e of logcicaContext[ext.destination.key]){
-        const existent = a.find(i => i.ids.includes(e.ids[0])) // TODO not perfect
-        console.log(existent)
-        if(existent == null)
-          a.push(e)
-        else
-          Object.assign(existent, e);
+    for (const e of logcicaContext[ext.destination.key]) {
+      const existent = a.find((i) => i.ids.includes(e.ids[0])); // TODO not perfect
+      if (existent == null) a.push(e);
+      else Object.assign(existent, e);
     }
 
-    logcicaContext[ext.destination.key] = a
-
+    logcicaContext[ext.destination.key] = a;
   }
 
-  return logcicaContext
+  return logcicaContext;
 }
+
+// TODO how to add relationships ... ??
 
 function defineContextExtraction() {
   const extractFromOrder = (destinationName, orderProperty) => {
@@ -157,7 +160,7 @@ function defineContextExtraction() {
           .forEach((key) => delete element[key]);
       },
     },
-    target: { key: "ofn" },
+    target: { key: "ofn_be" },
     destination: { key: "logCiCa" },
     extractions: [
       {
@@ -202,6 +205,17 @@ function defineContextExtraction() {
       {
         destination: { key: "orders" },
         extractAll: (ctx) => ctx.orders,
+        distributeRelationships: (el, newCtx) => {
+          newCtx.customers
+            .filter((c) => c.ids[0] == el.customer.ids[0])
+            .forEach((c) => (c.enterprise = el.distributor));
+          newCtx.order_cycles
+            .filter((c) => c.ids[0] == el.order_cycle.ids[0])
+            .forEach((c) => (c.enterprise = el.distributor));
+          newCtx.shipping_methods
+            .filter((c) => c.ids[0] == el.shipping_method.ids[0])
+            .forEach((c) => (c.enterprise = el.distributor));
+        },
       },
     ],
   };
