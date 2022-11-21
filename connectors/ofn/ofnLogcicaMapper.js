@@ -31,13 +31,12 @@ function getInformalQuantity(quantityText){
 export function contextFromEvent(event) {
   const context = {};
 
-  const shippingAddress = event.data.shipping_address;
-  const billingAddress = event.data.billing_address;
+  const order = event.data;
 
   // add region et quartier
   context.codes = [
     {
-      ids: ["ofn_be/country/" + shippingAddress.country.id],
+      ids: ["ofn_be/country/" + order.shippingAddress.country.id],
       name: "Belgium",
       list: {
         ids: ["iso/country"],
@@ -64,16 +63,16 @@ export function contextFromEvent(event) {
   // consolidate if same, make a last used data, make an id with a hash (hash object library ...) ?
   context.places = [
     {
-      ids: ["ofn_be/address/" + shippingAddress.id],
+      ids: ["ofn_be/address/" + order.shippingAddress.id],
       services: ["shipping"],
       private: true,
-      address: mapAddress(shippingAddress)
+      address: mapAddress(order.shippingAddress)
     },
     {
-      ids: ["ofn_be/address/" + billingAddress.id],
+      ids: ["ofn_be/address/" + order.billingAddress.id],
       services: ["billing"],
       private: true,
-      address: mapAddress(billingAddress),
+      address: mapAddress(order.billingAddress),
     },
   ];
 
@@ -116,10 +115,10 @@ export function contextFromEvent(event) {
       },
       places: [
         {
-          ids: ["ofn_be/address/" + shippingAddress.id],
+          ids: ["ofn_be/address/" + order.shippingAddress.id],
         },
         {
-          ids: ["ofn_be/address/" + billingAddress.id],
+          ids: ["ofn_be/address/" + order.billingAddress.id],
         },
       ],
     },
@@ -160,7 +159,7 @@ export function contextFromEvent(event) {
   if(shippingMethod.type == "pickup"){
     shippingMethod.pickup = {
       place: {
-        ids: ["ofn_be/address/" + shippingAddress.id]
+        ids: ["ofn_be/address/" + order.shippingAddress.id]
       }
     }
   }
@@ -314,7 +313,6 @@ export function contextFromEvent(event) {
     (x) => x.ids[0]
   );
 
-  const order = event.data;
 
   context.orders = [
     {
@@ -357,7 +355,7 @@ export function contextFromEvent(event) {
       },
       shippingAddress: {
         place: {
-          ids: ["ofn_be/address/" + shippingAddress.id],
+          ids: ["ofn_be/address/" + order.shippingAddress.id],
         },
       },
       shippingMethod: {

@@ -1,16 +1,95 @@
 import * as mapper from "./ofnLogcicaMapper.js";
 
+// for each item, give it a name
+
+// a transformation function ...
+// how to get it ...
+
+// extract ??
+test("How to define context mapping", () => {
+
+  const ofnContext = {
+    orders: [
+      {
+        lines: [
+          {
+            variant: {
+              id: "variant_id",
+            },
+          },
+        ],
+      }
+    ]
+  }
+
+  const contextMapping = {
+    default: {
+      transformOneUuid: (element, extraction, context) => {
+        element.ids = [
+          context.target.key + "/" + extraction.destination.key + "/" + element.id,
+        ];
+      },
+    },
+    target: {
+      key: "ofn",
+    },
+    destination: {
+      key: "logCiCa",
+    },
+    extractions: [
+      {
+        destination: {
+          key: "variants",
+        },
+        extractAll: (ctx) => {
+          return ctx.orders.map(o => o.lines.map((l) => l.variant)).flat(); // TODO reduce ??
+        },
+      },
+    ],
+  };
+
+  // process
+
+  const logcicaContext = {}
+
+  for(const ext of contextMapping.extractions){
+    const extracts = ext.extractAll(ofnContext)
+    extracts.forEach(e => contextMapping.default.transformOneUuid(e, ext, contextMapping))
+    logcicaContext[ext.destination.key] = extracts
+  }
+
+  console.log(JSON.stringify(logcicaContext, null, 2));
+});
+
+/*
 test("Open food network mapper", async () => {
   // const response = mapper.contextFromEvent(testInput)
   const prepared = prepareOrderBeforeExploding(ofnOrderSample);
-  console.log(JSON.stringify(prepared, null, 2));
+  //console.log(JSON.stringify(prepared, null, 2));
   const exploded = explodeOrder(prepared);
+  const idfyed = idfyOfnContext(exploded) // problem to put ids on reference, do it when exploding
 
-  console.log(JSON.stringify(exploded, null, 2));
+  console.log(JSON.stringify(idfyed, null, 2));
 });
+*/
 
+function idfyOfnContext(context1) {
+  const context = explodedOrderSample;
+
+  for (const entries of Object.entries(context)) {
+    const itemsName = entries[0];
+    const items = entries[1];
+
+    for (const item of items) {
+      item.ids = ["ofn/" + itemsName + "/" + item.id];
+    }
+  }
+
+  return context;
+}
+
+// TODO: payments and adjustements
 function explodeOrder(order) {
-
   const context = {
     enterprises: [order.distributor],
     order_cycles: [order.order_cycle],
@@ -31,33 +110,32 @@ function explodeOrder(order) {
     id: order.user.id,
   };
 
-  context.order = order;
-
   context.countries = [];
   context.states = [];
 
   ["ship_address", "bill_address"].forEach((a) => {
-    const country = order[a].country
+    const country = order[a].country;
     context.countries.push(country);
     order[a].country = { id: country.id };
 
-    const state = order[a].state
+    const state = order[a].state;
     context.states.push(state);
     order[a].state = { id: state.id };
   });
 
-  context.variants = []
-  context.products = []
+  context.variants = [];
+  context.products = [];
 
-  for(const line of order.line_items){
+  for (const line of order.line_items) {
+    context.products.push(line.variant.product);
+    line.variant.product = { ids: line.variant.product.ids };
 
-    context.products.push(line.variant.product)
-    line.variant.product = {ids: line.variant.product.ids}
-    
-    context.variants.push(line.variant)
+    context.variants.push(line.variant);
 
-    line.variant = { id: line.variant.id }
+    line.variant = { id: line.variant.id };
   }
+
+  context.orders = [order];
 
   return context;
 }
@@ -116,7 +194,12 @@ function prepareOrderBeforeExploding(order) {
     delete line.tax_category_id;
 
     line.variant.product = {
-      ids: ["ofn/"+order.distributor.id+"/products/"+line.variant.product_name], // TODO sluggify
+      ids: [
+        "ofn/" +
+          order.distributor.id +
+          "/products/" +
+          line.variant.product_name,
+      ], // TODO sluggify
       name: line.variant.product_name,
     };
 
@@ -131,6 +214,8 @@ function prepareOrderBeforeExploding(order) {
 
   return order;
 }
+
+// TODO enrich orders with products
 
 function explode(input) {
   const context = {};
@@ -520,7 +605,8 @@ const preparedOrderSample = {
   id: 422667,
   number: "R032864067",
   completed_at: "August 23, 2022",
-  display_total: "<span class=\"money-whole\">8</span><span class=\"money-decimal-mark\">.</span><span class=\"money-decimal\">50</span> <span class=\"money-currency-symbol\">&#x20AC;</span>",
+  display_total:
+    '<span class="money-whole">8</span><span class="money-decimal-mark">.</span><span class="money-decimal">50</span> <span class="money-currency-symbol">&#x20AC;</span>',
   edit_path: "/admin/orders/R032864067/edit",
   state: "complete",
   payment_state: "paid",
@@ -546,7 +632,7 @@ const preparedOrderSample = {
       adjustable_id: 19331,
       originator_type: "Spree::PaymentMethod",
       originator_id: 183,
-      tax_category_id: null
+      tax_category_id: null,
     },
     {
       id: 3345523,
@@ -557,22 +643,23 @@ const preparedOrderSample = {
       adjustable_id: 19368,
       originator_type: "Spree::ShippingMethod",
       originator_id: 112,
-      tax_category_id: null
-    }
+      tax_category_id: null,
+    },
   ],
   distributor: {
     id: 591,
-    name: "Comptoir Demo OFN"
+    name: "Comptoir Demo OFN",
   },
   order_cycle: {
-    id: 2545
+    id: 2545,
   },
   shipping_method: {
     id: 112,
     require_ship_address: true,
     name: "Livraison par Bpost",
-    description: "La commande vous sera livrée dans les 2 jours ouvrables après la date choisie lors de votre commande -  vu les circonstances ce délai peut-être plus long.\r\n\r\nExemple : si commande prête pour le lundi 20/04, elle vous sera livrée vers le 22/04.",
-    price: "6.5"
+    description:
+      "La commande vous sera livrée dans les 2 jours ouvrables après la date choisie lors de votre commande -  vu les circonstances ce délai peut-être plus long.\r\n\r\nExemple : si commande prête pour le lundi 20/04, elle vous sera livrée vers le 22/04.",
+    price: "6.5",
   },
   ship_address: {
     zipcode: "6850",
@@ -584,12 +671,12 @@ const preparedOrderSample = {
     address2: "",
     country: {
       id: 29,
-      name: "Belgium"
+      name: "Belgium",
     },
     state: {
       id: 166,
-      name: "Luxembourg"
-    }
+      name: "Luxembourg",
+    },
   },
   bill_address: {
     zipcode: "6850",
@@ -601,12 +688,12 @@ const preparedOrderSample = {
     address2: "",
     country: {
       id: 29,
-      name: "Belgium"
+      name: "Belgium",
     },
     state: {
       id: 166,
-      name: "Luxembourg"
-    }
+      name: "Luxembourg",
+    },
   },
   line_items: [
     {
@@ -636,38 +723,244 @@ const preparedOrderSample = {
         unit_price_price: "0.0",
         unit_price_unit: " unité",
         product: {
-          ids: [
-            "ofn/591/Chocolat noir sans sucre"
-          ],
-          name: "Chocolat noir sans sucre"
-        }
+          ids: ["ofn/591/Chocolat noir sans sucre"],
+          name: "Chocolat noir sans sucre",
+        },
       },
       tax_category: {
-        id: 1
-      }
-    }
+        id: 1,
+      },
+    },
   ],
   payments: [
     {
       amount: "8.5",
       updated_at: "Aug 23, 2022 10:50",
       payment_method: {
-        name: "Paiement en espèces lors du retrait au comptoir"
+        name: "Paiement en espèces lors du retrait au comptoir",
       },
       state: "completed",
-      cvv_response_message: null
-    }
+      cvv_response_message: null,
+    },
   ],
   user: {
     id: 3497,
     full_name: "Olivier Wouters",
     email: "olivier5741@gmail.com",
-    phone: "+32999999"
+    phone: "+32999999",
   },
   customer: {
-    id: 2997
-  }
-}
+    id: 2997,
+  },
+};
+
+const explodedOrderSample = {
+  enterprises: [
+    {
+      id: 591,
+      name: "Comptoir Demo OFN",
+    },
+  ],
+  order_cycles: [
+    {
+      id: 2545,
+    },
+  ],
+  shipping_methods: [
+    {
+      id: 112,
+      require_ship_address: true,
+      name: "Livraison par Bpost",
+      description:
+        "La commande vous sera livrée dans les 2 jours ouvrables après la date choisie lors de votre commande -  vu les circonstances ce délai peut-être plus long.\r\n\r\nExemple : si commande prête pour le lundi 20/04, elle vous sera livrée vers le 22/04.",
+      price: "6.5",
+    },
+  ],
+  users: [
+    {
+      id: 3497,
+      full_name: "Olivier Wouters",
+      email: "olivier5741@gmail.com",
+      phone: "+32999999",
+    },
+  ],
+  customers: [
+    {
+      id: 2997,
+    },
+  ],
+  countries: [
+    {
+      id: 29,
+      name: "Belgium",
+    },
+    {
+      id: 29,
+      name: "Belgium",
+    },
+  ],
+  states: [
+    {
+      id: 166,
+      name: "Luxembourg",
+    },
+    {
+      id: 166,
+      name: "Luxembourg",
+    },
+  ],
+  variants: [
+    {
+      id: 23800,
+      is_master: false,
+      sku: "00454000020023",
+      options_text: "1  unité",
+      unit_value: 1,
+      unit_description: "",
+      unit_to_display: "1  unité",
+      display_as: null,
+      display_name: null,
+      name_to_display: "Chocolat noir sans sucre",
+      price: "0.0",
+      on_demand: false,
+      on_hand: 0,
+      fees: {},
+      fees_name: {},
+      price_with_fees: "0.0",
+      tag_list: [],
+      thumb_url: "/noimage/mini.png",
+      unit_price_price: "0.0",
+      unit_price_unit: " unité",
+      product: {
+        ids: ["ofn/591/products/Chocolat noir sans sucre"],
+      },
+    },
+  ],
+  products: [
+    {
+      ids: ["ofn/591/products/Chocolat noir sans sucre"],
+      name: "Chocolat noir sans sucre",
+    },
+  ],
+  orders: [
+    {
+      id: 422667,
+      number: "R032864067",
+      completed_at: "August 23, 2022",
+      display_total:
+        '<span class="money-whole">8</span><span class="money-decimal-mark">.</span><span class="money-decimal">50</span> <span class="money-currency-symbol">&#x20AC;</span>',
+      edit_path: "/admin/orders/R032864067/edit",
+      state: "complete",
+      payment_state: "paid",
+      shipment_state: "ready",
+      payments_path: "/admin/orders/R032864067/payments",
+      ready_to_ship: true,
+      ready_to_capture: false,
+      created_at: "August 23, 2022",
+      special_instructions: null,
+      display_outstanding_balance: "",
+      item_total: "2.0",
+      adjustment_total: "6.5",
+      payment_total: "8.5",
+      total: "8.5",
+      item_count: 1,
+      adjustments: [
+        {
+          id: 3345525,
+          amount: "0.0",
+          label: "Frais de transaction",
+          eligible: true,
+          adjustable_type: "Spree::Payment",
+          adjustable_id: 19331,
+          originator_type: "Spree::PaymentMethod",
+          originator_id: 183,
+          tax_category_id: null,
+        },
+        {
+          id: 3345523,
+          amount: "6.5",
+          label: "Expédition",
+          eligible: true,
+          adjustable_type: "Spree::Shipment",
+          adjustable_id: 19368,
+          originator_type: "Spree::ShippingMethod",
+          originator_id: 112,
+          tax_category_id: null,
+        },
+      ],
+      distributor: {
+        id: 591,
+      },
+      order_cycle: {
+        id: 2545,
+      },
+      shipping_method: {
+        id: 112,
+      },
+      ship_address: {
+        zipcode: "6850",
+        city: "Carlsbourg",
+        phone: "+32999999",
+        firstname: "Olivier",
+        lastname: "Wouters",
+        address1: "Grand rue, 40",
+        address2: "",
+        country: {
+          id: 29,
+        },
+        state: {
+          id: 166,
+        },
+      },
+      bill_address: {
+        zipcode: "6850",
+        city: "Carlsbourg",
+        phone: "+32999999",
+        firstname: "Olivier",
+        lastname: "Wouters",
+        address1: "Grand rue, 40",
+        address2: "",
+        country: {
+          id: 29,
+        },
+        state: {
+          id: 166,
+        },
+      },
+      line_items: [
+        {
+          id: 251263,
+          quantity: 2,
+          max_quantity: null,
+          price: "1.0",
+          variant: {
+            id: 23800,
+          },
+          tax_category: {
+            id: 1,
+          },
+        },
+      ],
+      payments: [
+        {
+          amount: "8.5",
+          updated_at: "Aug 23, 2022 10:50",
+          payment_method: {
+            name: "Paiement en espèces lors du retrait au comptoir",
+          },
+          state: "completed",
+          cvv_response_message: null,
+        },
+      ],
+      user: {
+        id: 3497,
+      },
+      customer: {
+        id: 2997,
+      },
+    },
+  ],
+};
 
 const testInput = {
   type: "order_created_or_updated",
