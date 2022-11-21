@@ -5,57 +5,96 @@ import * as mapper from "./ofnLogcicaMapper.js";
 // a transformation function ...
 // how to get it ...
 
+// use / in ids because better for pattern matching, transform in . for i18n
+
+// TODO should I be using _ids instead of _id
+
 // extract ??
 test("How to define context mapping", () => {
-
   const ofnContext = {
-    orders: [
-      {
-        lines: [
-          {
-            variant: {
-              id: "variant_id",
-            },
-          },
-        ],
-      }
-    ]
+    orders: [preparedOrderSample],
+  };
+
+  // extractAll
+  // idify
+  // cleanUp
+
+  const extractFromOrder = (destinationName,orderProperty) => {
+    return {
+      destination: { key: destinationName },
+      extractAll: (ctx) =>
+        ctx.orders.map(o => o[orderProperty]),
+    };
   }
+  
 
   const contextMapping = {
     default: {
       transformOneUuid: (element, extraction, context) => {
         element.ids = [
-          context.target.key + "/" + extraction.destination.key + "/" + element.id,
+          context.target.key +
+            "/" +
+            extraction.destination.key +
+            "/" +
+            element.id,
         ];
       },
+      cleanUpOne: (element) => {
+        Object.keys(element)
+          .filter((k) => k != "ids")
+          .forEach((key) => delete element[key]);
+      },
     },
-    target: {
-      key: "ofn",
-    },
-    destination: {
-      key: "logCiCa",
-    },
+    target: { key: "ofn" },
+    destination: { key: "logCiCa" },
     extractions: [
       {
-        destination: {
-          key: "variants",
-        },
-        extractAll: (ctx) => {
-          return ctx.orders.map(o => o.lines.map((l) => l.variant)).flat(); // TODO reduce ??
-        },
+        destination: { key: "variants" },
+        extractAll: (ctx) =>
+          ctx.orders.map((o) => o.line_items.map((l) => l.variant)).flat(),
+      },
+      {
+        destination: { key: "tax_categories" },
+        extractAll: (ctx) =>
+          ctx.orders.map((o) => o.line_items.map((l) => l.tax_category)).flat(),
+      },
+      {
+        destination: { key: "countries" },
+        extractAll: (ctx) =>
+          ctx.orders.map((o) => [o.bill_address.country, o.ship_address.country]).flat(),
+      },
+      {
+        destination: { key: "states" },
+        extractAll: (ctx) =>
+          ctx.orders.map((o) => [o.bill_address.state, o.ship_address.state]).flat(),
+      },
+      extractFromOrder("enterprises","distributor"),
+      extractFromOrder("users","user"),
+      extractFromOrder("customers","customer"),
+      extractFromOrder("order_cycles","order_cycle"),
+      extractFromOrder("shipping_methods","shipping_method"),
+      {
+        destination: { key: "orders" },
+        extractAll: (ctx) => ctx.orders,
       },
     ],
   };
 
   // process
 
-  const logcicaContext = {}
+  const logcicaContext = {};
 
-  for(const ext of contextMapping.extractions){
-    const extracts = ext.extractAll(ofnContext)
-    extracts.forEach(e => contextMapping.default.transformOneUuid(e, ext, contextMapping))
-    logcicaContext[ext.destination.key] = extracts
+  for (const ext of contextMapping.extractions) {
+    const extracts = ext.extractAll(ofnContext);
+    extracts.forEach((e) =>
+      contextMapping.default.transformOneUuid(e, ext, contextMapping)
+    );
+    const copies = extracts.map((e) => Object.assign({}, e));
+
+    extracts.forEach((e) => contextMapping.default.cleanUpOne(e));
+
+    // TODO remove duplicates from copies ... consolidate ?
+    logcicaContext[ext.destination.key] = (logcicaContext[ext.destination.key] ?? []).concat(copies)
   }
 
   console.log(JSON.stringify(logcicaContext, null, 2));
@@ -723,7 +762,6 @@ const preparedOrderSample = {
         unit_price_price: "0.0",
         unit_price_unit: " unité",
         product: {
-          ids: ["ofn/591/Chocolat noir sans sucre"],
           name: "Chocolat noir sans sucre",
         },
       },
