@@ -1,4 +1,5 @@
 import * as mapper from "./ofnLogcicaMapper.js";
+import * as OfnApiV0Extractor from "./ofnApiV0Extractor.js"
 
 // for each item, give it a name
 
@@ -9,10 +10,33 @@ import * as mapper from "./ofnLogcicaMapper.js";
 
 // TODO should I be using _ids instead of _id
 
+// TODO, if only one variant for product, don't record product group ...
+
+test("Order clean up", () => {
+  const cleanedUpOrder = OfnApiV0Extractor.cleanUpOrder(ofnOrderSample)
+  console.log(JSON.stringify(cleanedUpOrder,null, 2))
+
+  const cleanedUpProduct =  OfnApiV0Extractor.cleanUpProduct(ofnProductUnpreparedSample)
+  console.log(JSON.stringify(cleanedUpProduct,null, 2))
+
+  const ofnApiV0Context = {
+    orders: [cleanedUpOrder],
+    products: [cleanedUpProduct]
+  }
+
+  const extractedContext = OfnApiV0Extractor.extract(ofnApiV0Context)
+
+  console.log(JSON.stringify(extractedContext,null, 2))
+
+})
+
 // extract ??
+
+/*
 test("How to define context mapping", () => {
   const ofnContext = {
-    orders: [preparedOrderSample],
+    orders: [ofnOrderSample],
+    products: [ofnProductSample]
   };
 
   // extractAll
@@ -49,14 +73,29 @@ test("How to define context mapping", () => {
     destination: { key: "logCiCa" },
     extractions: [
       {
-        destination: { key: "variants" },
+        destination: { key: "enterprises" },
         extractAll: (ctx) =>
-          ctx.orders.map((o) => o.line_items.map((l) => l.variant)).flat(),
+          ctx.products.map((p) => p.producer),
+      },
+      {
+        destination: { key: "product_categories" },
+        extractAll: (ctx) =>
+          ctx.products.map((p) => p.category),
       },
       {
         destination: { key: "tax_categories" },
         extractAll: (ctx) =>
-          ctx.orders.map((o) => o.line_items.map((l) => l.tax_category)).flat(),
+          ctx.products.map((p) => p.tax_category),
+      },
+      {
+        destination: { key: "variants" },
+        extractAll: (ctx) =>
+          ctx.products.map((p) => p.variants).flat(),
+      },
+      {
+        destination: { key: "products" },
+        extractAll: (ctx) =>
+          ctx.products,
       },
       {
         destination: { key: "countries" },
@@ -99,6 +138,8 @@ test("How to define context mapping", () => {
 
   console.log(JSON.stringify(logcicaContext, null, 2));
 });
+*/
+
 
 /*
 test("Open food network mapper", async () => {
@@ -245,11 +286,9 @@ function prepareOrderBeforeExploding(order) {
     delete line.variant.product_name;
   }
 
-  for (const p of order.payments) {
-    p.payment_method = {
-      name: p.payment_method,
-    };
-  }
+  // TODO not supported
+  delete order.payments
+  delete order.adjustments
 
   return order;
 }
@@ -370,33 +409,11 @@ const ofnOrderSample = {
     {
       id: 251263,
       quantity: 2,
-      max_quantity: null,
       price: "1.0",
-      order_id: 422667,
-      tax_category_id: 1,
       variant: {
         id: 23800,
-        is_master: false,
         product_name: "Chocolat noir sans sucre",
-        sku: "00454000020023",
-        options_text: "1  unité",
-        unit_value: 1,
-        unit_description: "",
-        unit_to_display: "1  unité",
-        display_as: null,
-        display_name: null,
-        name_to_display: "Chocolat noir sans sucre",
-        price: "0.0",
-        on_demand: false,
-        on_hand: 0,
-        fees: {},
-        fees_name: {},
-        price_with_fees: "0.0",
-        tag_list: [],
-        thumb_url: "/noimage/mini.png",
-        unit_price_price: "0.0",
-        unit_price_unit: " unité",
-      },
+      }
     },
   ],
   payments: [
@@ -409,6 +426,112 @@ const ofnOrderSample = {
     },
   ],
 };
+
+const ofnProductUnpreparedSample = {
+  id: 9737,
+  name: "Chocolat noir sans sucre",
+  sku: "00454000020023",
+  variant_unit: "items",
+  variant_unit_scale: null,
+  variant_unit_name: " unité",
+  inherits_properties: true,
+  on_hand: 0,
+  price: "0.0",
+  available_on: "2022-07-12 13:32:08",
+  permalink_live: "chocolat-noir-sans-sucre-1",
+  tax_category_id: 1,
+  import_date: null,
+  image_url: "/noimage/product.png",
+  thumb_url: "/noimage/mini.png",
+  producer_id: 591,
+  category_id: 2,
+  variants: [
+    {
+      id: 23800,
+      name: "Chocolat noir sans sucre - 1  unité",
+      producer_name: "Comptoir Demo OFN",
+      image: null,
+      sku: "00454000020023",
+      import_date: null,
+      options_text: "1  unité",
+      unit_value: 1,
+      unit_description: "",
+      unit_to_display: "1  unité",
+      display_as: null,
+      display_name: null,
+      name_to_display: "Chocolat noir sans sucre",
+      variant_overrides_count: 1,
+      price: "0.0",
+      on_demand: false,
+      on_hand: 0,
+      in_stock: false,
+      stock_location_id: 1,
+      stock_location_name: "default"
+    }
+  ],
+  master: {
+    id: 23799,
+    name: "Chocolat noir sans sucre - 1  unité",
+    producer_name: "Comptoir Demo OFN",
+    image: null,
+    sku: "00454000020023",
+    import_date: null,
+    options_text: "1  unité",
+    unit_value: 1,
+    unit_description: "",
+    unit_to_display: "1  unité",
+    display_as: null,
+    display_name: null,
+    name_to_display: "Chocolat noir sans sucre",
+    variant_overrides_count: 0,
+    price: "0.0",
+    on_demand: false,
+    on_hand: 0,
+    in_stock: false,
+    stock_location_id: 1,
+    stock_location_name: "default"
+  }
+}
+
+const ofnProductSample = {
+  id: 9737,
+  name: "Chocolat noir sans sucre",
+  variant_unit: "items",
+  variant_unit_scale: null,
+  variant_unit_name: " unité",
+  available_on: "2022-07-12 13:32:08",
+  permalink_live: "chocolat-noir-sans-sucre-1",
+  tax_category: {
+    id: 1,
+  },
+  image_url: "/noimage/product.png",
+  thumb_url: "/noimage/mini.png",
+  producer: {
+    id: 591,
+    name: "Comptoir Demo OFN"
+  },
+  category: {
+    id: 2
+  },
+  variants: [
+    {
+      id: 23800,
+      name: "Chocolat noir sans sucre - 1  unité",
+      sku: "00454000020023",
+      options_text: "1  unité",
+      unit_value: 1,
+      unit_description: "",
+      unit_to_display: "1  unité",
+      display_as: null,
+      display_name: null,
+      name_to_display: "Chocolat noir sans sucre",
+      price: "0.0",
+      on_demand: false,
+      on_hand: 0,
+      in_stock: false,
+    }
+  ]
+}
 
 const ofnContext = {
   // map straight to order
@@ -738,36 +861,10 @@ const preparedOrderSample = {
     {
       id: 251263,
       quantity: 2,
-      max_quantity: null,
       price: "1.0",
       variant: {
-        id: 23800,
-        is_master: false,
-        sku: "00454000020023",
-        options_text: "1  unité",
-        unit_value: 1,
-        unit_description: "",
-        unit_to_display: "1  unité",
-        display_as: null,
-        display_name: null,
-        name_to_display: "Chocolat noir sans sucre",
-        price: "0.0",
-        on_demand: false,
-        on_hand: 0,
-        fees: {},
-        fees_name: {},
-        price_with_fees: "0.0",
-        tag_list: [],
-        thumb_url: "/noimage/mini.png",
-        unit_price_price: "0.0",
-        unit_price_unit: " unité",
-        product: {
-          name: "Chocolat noir sans sucre",
-        },
-      },
-      tax_category: {
-        id: 1,
-      },
+        id: 23800
+      }
     },
   ],
   payments: [
