@@ -1,3 +1,6 @@
+import * as contextMap from "../../contextEtl/map.js";
+import { quickMap } from "../../contextEtl/map.js";
+
 function uniqByKeepLast(data, key) {
   return [...new Map(data.map((x) => [key(x), x])).values()];
 }
@@ -28,10 +31,8 @@ function getInformalQuantity(quantityText) {
   };
 }
 
-export function mapContext(ofnContext) {
+export function mapOfnToLogcicaContext(ofnContext) {
   const ofn_be = "ofn_be";
-
-  const logcicaContext = {};
 
   const mapCodes = (el, target) => ({
     ids: el.ids,
@@ -47,13 +48,23 @@ export function mapContext(ofnContext) {
     },
   });
 
-  const quickMap = (targetKey, destinationKey, map) => ({
-    target: { key: targetKey },
-    destination: { key: destinationKey },
-    map: map,
-  });
+  const initContext = (ofnContext, logcicaContext) => {
+    logcicaContext.workspaces = [{ ids: ["logcica/workspaces/ofn_be"] }];
 
-  const contextMapping = {
+    logcicaContext.productClassifications = [
+      {
+        ids: ["logcica/product_classifications/ofn_be"],
+        owner: {
+          workspace: {
+            ids: ["logcica/workspace/ofn_be"],
+          },
+        },
+      },
+    ];
+  };
+
+  const config = {
+    init: initContext,
     mappings: [
       quickMap("countries", "codes", mapCodes),
       quickMap("states", "codes", mapCodes),
@@ -95,28 +106,7 @@ export function mapContext(ofnContext) {
     ],
   };
 
-  logcicaContext.workspaces = [{ ids: ["logcica/workspaces/ofn_be"] }];
-
-  logcicaContext.productClassifications = [
-    {
-      ids: ["logcica/product_classifications/ofn_be"],
-      owner: {
-        workspace: {
-          ids: ["logcica/workspace/ofn_be"],
-        },
-      },
-    },
-  ];
-
-  for (const mapping of contextMapping.mappings) {
-    const mapped = ofnContext[mapping.target.key].map((e) =>
-      mapping.map(e, mapping.target)
-    );
-    console.log(mapped);
-    logcicaContext[mapping.destination.key] = (
-      logcicaContext[mapping.destination.key] ?? []
-    ).concat(mapped);
-  }
+  const logcicaContext = contextMap.mapContext(ofnContext, config);
 
   // TODO customers and suppliers
   // TODO places

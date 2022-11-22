@@ -1,5 +1,5 @@
 import * as mapper from "./ofnLogcicaMapper.js";
-import * as extractor from "./ofnApiV0Extractor.js"
+import * as ofnApiV0Extractor from "./ofnApiV0Extractor.js";
 
 // for each item, give it a name
 
@@ -13,22 +13,22 @@ import * as extractor from "./ofnApiV0Extractor.js"
 // TODO, if only one variant for product, don't record product group ...
 
 test("Order clean up", () => {
-  const cleanedUpOrder = extractor.cleanUpOrder(ofnOrderSample)
-
-  const cleanedUpProduct =  extractor.cleanUpProduct(ofnProductUnpreparedSample)
+  const cleanedUpOrder = ofnApiV0Extractor.cleanUpOrder(ofnOrderSample);
+  const cleanedUpProduct = ofnApiV0Extractor.cleanUpProduct(
+    ofnProductUnpreparedSample
+  );
 
   const ofnApiV0Context = {
     orders: [cleanedUpOrder],
-    products: [cleanedUpProduct]
-  }
+    products: [cleanedUpProduct],
+  };
 
-  const extractedContext = extractor.extract(ofnApiV0Context)
-  console.log(JSON.stringify(extractedContext,null, 2))
+  const extractedContext = ofnApiV0Extractor.extract(ofnApiV0Context);
+  console.log(JSON.stringify(extractedContext, null, 2));
 
-  const mappedContext =  mapper.mapContext(extractedContext)
-  console.log(JSON.stringify(mappedContext,null, 2))
-
-})
+  const mappedContext = mapper.mapOfnToLogcicaContext(extractedContext);
+  console.log(JSON.stringify(mappedContext, null, 2));
+});
 
 const ofnOrderSample = {
   id: 422667,
@@ -131,7 +131,7 @@ const ofnOrderSample = {
       variant: {
         id: 23800,
         product_name: "Chocolat noir sans sucre",
-      }
+      },
     },
   ],
   payments: [
@@ -184,8 +184,8 @@ const ofnProductUnpreparedSample = {
       on_hand: 0,
       in_stock: false,
       stock_location_id: 1,
-      stock_location_name: "default"
-    }
+      stock_location_name: "default",
+    },
   ],
   master: {
     id: 23799,
@@ -207,9 +207,9 @@ const ofnProductUnpreparedSample = {
     on_hand: 0,
     in_stock: false,
     stock_location_id: 1,
-    stock_location_name: "default"
-  }
-}
+    stock_location_name: "default",
+  },
+};
 
 const ofnProductSample = {
   id: 9737,
@@ -226,10 +226,10 @@ const ofnProductSample = {
   thumb_url: "/noimage/mini.png",
   producer: {
     id: 591,
-    name: "Comptoir Demo OFN"
+    name: "Comptoir Demo OFN",
   },
   category: {
-    id: 2
+    id: 2,
   },
   variants: [
     {
@@ -247,9 +247,9 @@ const ofnProductSample = {
       on_demand: false,
       on_hand: 0,
       in_stock: false,
-    }
-  ]
-}
+    },
+  ],
+};
 
 const ofnContext = {
   // map straight to order
@@ -581,8 +581,8 @@ const preparedOrderSample = {
       quantity: 2,
       price: "1.0",
       variant: {
-        id: 23800
-      }
+        id: 23800,
+      },
     },
   ],
   payments: [
