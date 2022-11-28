@@ -28,8 +28,7 @@ const osmElementsAbreviations = {
   r: "relationships",
 };
 
-export function mapPlaceFeatureToContext(input1) {
-  const input = nominatimPlaceFeature;
+export function mapPlaceFeatureToContext(input) {
   const featureProperties = input.properties;
 
   const place = {
@@ -53,9 +52,16 @@ export function mapPlaceFeatureToContext(input1) {
   if (featureProperties.housenumber != null)
     address.streetLine += " " + featureProperties.housenumber;
 
-  address.text = address.streetLine + ", " + address.postcode + " " + address.locality + ", " + address.country
+  address.text =
+    address.streetLine +
+    ", " +
+    address.postcode +
+    " " +
+    address.locality +
+    ", " +
+    address.country;
 
-  place.address = address
+  place.address = address;
 
   const areas = [
     {
@@ -100,18 +106,18 @@ export function mapPlaceFeatureToContext(input1) {
     areas.push(area);
   }
 
-  for(let i = 0; i < areas.length; i++){
-    const previousAreas = areas.slice(0,i)
+  for (let i = 0; i < areas.length; i++) {
+    const previousAreas = areas.slice(0, i);
 
-    if(previousAreas.length == 0) continue
+    if (previousAreas.length == 0) continue;
 
-    const currentArea = areas[i]
+    const currentArea = areas[i];
     currentArea.geoWithins = previousAreas.map((a) => ({
-        ids: a.ids,
-      }));
+      ids: a.ids,
+    }));
 
-    if(currentArea.types.includes("postcode"))  
-      currentArea.geoWithins = [{ids: areas[0].ids}]
+    if (currentArea.types.includes("postcode"))
+      currentArea.geoWithins = [{ ids: areas[0].ids }];
   }
 
   place.areas = areas.map((a) => ({
@@ -129,28 +135,3 @@ export function mapPlaceFeatureToContext(input1) {
 
 const PhotonLogcicaMapper = () => {};
 export default PhotonLogcicaMapper;
-
-const nominatimPlaceFeature = {
-  geometry: {
-    coordinates: [5.086509430429737, 49.896207149999995],
-    type: "Point",
-  },
-  type: "Feature",
-  properties: {
-    osm_id: 890827177,
-    extent: [5.0863637, 49.8962813, 5.0866271, 49.8961331],
-    country: "België / Belgique / Belgien",
-    city: "Paliseul",
-    countrycode: "BE",
-    postcode: "6850",
-    county: "Neufchâteau",
-    type: "house",
-    osm_type: "W",
-    osm_key: "building",
-    housenumber: "40",
-    street: "Grand Rue",
-    district: "Carlsbourg",
-    osm_value: "yes",
-    state: "Luxembourg",
-  },
-};
