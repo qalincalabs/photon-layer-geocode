@@ -36,6 +36,132 @@ const nutrientProperties = [
   "sodium",
 ];
 
+const specificNutritionKeys = [
+  "carbon-footprint_100g",
+  "ph_100g",
+  "cocoa", 
+  "fruits-vegetables-nuts_100g",
+  "fruits_vegetables_nuts_estimate_100g",
+  "nutrition-score-fr_100g",
+  "nutrition-score-uk_100g"
+]
+
+export function cleanUpProduct(product, languages) {
+  product.ingredientsBeforeTagCleanUp = product.ingredients;
+  cleanUpProductTags(product, languages);
+  cleanUpNutriments(product)
+
+  product.ingredientsBeforeTagCleanUp.forEach(
+    (i) =>
+      (i.translations = product.ingredients.find(
+        (i2) => i2.id == i.id
+      )?.translations)
+  );
+
+  product.ingredients = product.ingredientsBeforeTagCleanUp;
+  delete product.ingredientsBeforeTagCleanUp;
+
+  // merge ingredients
+
+  return product;
+}
+
+function cleanUpNutriments(product){
+  const nutrients = []
+
+  for(const n of nutrientProperties){
+    nutrients.push({
+      key: n,
+      value: product.nutriments[n+"_100g"],
+      unit: product.nutriments[n+"_unit"]
+    })
+
+    delete product.nutriments[n]
+    delete product.nutriments[n+"_100g"]
+    delete product.nutriments[n+"_unit"]
+    delete product.nutriments[n+"_value"]
+  }
+
+  product.nutrients = nutrients
+
+}
+
+function cleanUpProductTags(product, languages) {
+  const tagAggregates = [
+    "additives",
+    "allergens",
+    "categories",
+    "labels",
+    "traces",
+    "origins",
+    "countries",
+    "vitamins",
+    "brands",
+    "manufacturing_places",
+    "purchase_places",
+    "stores",
+    "states",
+    "ingredients",
+    "data_sources",
+  ];
+
+  const untranslateAggregates = ["brands", "manufacturing_places", "data_sources"]
+
+  // don't translate brands, manufacturing places, 
+
+  // todo ingredients, todo packagings
+  for (const ta of tagAggregates) {
+    const tags = product[ta + "_tags"];
+
+    console.log(ta);
+
+    delete product[ta + "_hierarchy"];
+    delete product[ta + "_text"];
+    delete product[ta + "_lc"];
+    delete product[ta];
+
+    if (tags.length == 0) {
+      // TODO 4 lines of duplicate code
+      for (const l of languages) delete product[ta + "_tags_" + l];
+
+      delete product[ta + "_tags"];
+
+      continue;
+    }
+
+    product[ta] = [];
+
+    for (let i = 0; i < tags.length; i++) {
+      const a = {
+        id: tags[i],
+      };
+
+
+      if(untranslateAggregates.includes(ta) == false){
+        for (const l of languages) {
+          if (product[ta + "_tags_" + l] == null) continue;
+  
+          if (a.translations == null) a.translations = {};
+  
+          const nameTl = product[ta + "_tags_" + l][i];
+          if (nameTl != null)
+            a.translations[l] = {
+              name: nameTl,
+            };
+        }
+      }
+
+      product[ta].push(a);
+    }
+
+    for (const l of languages) delete product[ta + "_tags_" + l];
+
+    delete product[ta + "_tags"];
+  }
+
+  return product;
+}
+
 export function mapProduct(inputProduct, config) {
   const languages = config.languages;
 
@@ -105,7 +231,7 @@ function mapIngredients(inputProduct, product, context, languages) {
       ids: ["off/ingredients/" + i.id],
     },
     sequence: i.rank,
-    contentPercentage: i.percent
+    contentPercentage: i.percent,
   }));
 }
 
@@ -207,11 +333,10 @@ function mapTags(inputProduct, product, context, languages) {
           };
       }
 
-      console.log(a);
       context[ta].push(a);
     }
   }
 }
 
-const OffLogcicaMapper = () => {}
+const OffLogcicaMapper = () => {};
 export default OffLogcicaMapper;

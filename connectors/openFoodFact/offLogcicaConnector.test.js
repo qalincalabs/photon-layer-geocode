@@ -15,6 +15,6 @@ test("Open food facts connector", async () => {
   });
 
   const enrichedContext = await connector.enrich(inputContext);
-  console.log(JSON.stringify(enrichedContext, null, 2));
+  //console.log(JSON.stringify(enrichedContext, null, 2));
 
 });
