@@ -1,3 +1,5 @@
+import * as osmMapper from "../openStreetMap/osmLogcicaMapper.js";
+
 const photonAreaLayersAfterCountryForBelgium = {
   state: {
     keyOther: "states",
@@ -52,14 +54,7 @@ export function mapPlaceFeatureToContext(input) {
   if (featureProperties.housenumber != null)
     address.streetLine += " " + featureProperties.housenumber;
 
-  address.text =
-    address.streetLine +
-    ", " +
-    address.postcode +
-    " " +
-    address.locality +
-    ", " +
-    address.country;
+  address.text = osmMapper.getAddressText(address)
 
   place.address = address;
 
