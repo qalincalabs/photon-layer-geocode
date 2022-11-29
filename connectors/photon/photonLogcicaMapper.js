@@ -55,7 +55,7 @@ export function mapPlaceFeatureToContext(input) {
   if (featureProperties.housenumber != null)
     address.streetLine += " " + featureProperties.housenumber;
 
-  address.text = osmMapper.getAddressText(address)
+  address.text = osmMapper.getAddressText(address);
 
   place.address = address;
 
@@ -67,40 +67,50 @@ export function mapPlaceFeatureToContext(input) {
     },
   ];
 
-  for (const [key, value] of Object.entries(
-    photonAreaLayersAfterCountryForBelgium
-  )) {
+  const appKey = "photon";
+  const countryCode = "be";
+
+  const mappings = osmMapper.countryConfig[countryCode]?.mappings
+    .filter((m) => m.filters.photon != null)
+
+  for (const mapping of mappings) {
+
+    const key = mapping.filters.photon.key
     const name = featureProperties[key];
+    const nameKey = core.sluggify(name)
+    
     const area = {
-      ids: ["photon/be/" + value.keyOther + "/" + name.toLowerCase()], // TODO sluggify
+      ids: [
+        `${countryCode}/${mapping.typeOther}/${nameKey}`,
+        `${appKey}/${countryCode}/${mapping.photonTypeOther}/${nameKey}`
+      ], // TODO sluggify
       name: name,
-      types: ["photon/" + key],
+      types: [
+        `${countryCode}/${mapping.typeOne}`,
+        `${appKey}/${key}`
+      ],
     };
-
-    if (key == "district") {
-      area.ids = [
-        "photon/be/" +
-          featureProperties["city"].toLowerCase() +
-          "/" +
-          value.keyOther +
-          "/" +
-          name.toLowerCase(),
-      ];
-    }
-
-    if (key == "postcode") {
-      area.types = ["postcode"];
-    }
-
-    if (value.equivalentOne != null) {
-      area.ids.unshift(
-        "photon/be/" + value.equivalentOther + "/" + name.toLowerCase()
-      );
-      area.types.unshift("be/" + value.equivalentOne);
-    }
 
     areas.push(area);
   }
+
+  const districtKey = core.sluggify(featureProperties["district"]);
+  const cityKey = core.sluggify(featureProperties["city"]);
+  areas.push({
+    ids: [
+      `${appKey}/${countryCode}/${cityKey}/districts/${districtKey}`,
+    ],
+    name: districtKey,
+    type: [appKey + "/district"]
+  });
+
+  const postalCode = featureProperties["postcode"]
+  const postalCodeKey = core.sluggify(postalCode)
+  areas.push({
+    ids: [`${countryCode}/postal_codes/${postalCodeKey}`],
+    name: postalCode,
+    type: ["postal_code"]
+  })
 
   core.populateAreaWithins(areas);
 
@@ -119,4 +129,3 @@ export function mapPlaceFeatureToContext(input) {
 
 const PhotonLogcicaMapper = () => {};
 export default PhotonLogcicaMapper;
-

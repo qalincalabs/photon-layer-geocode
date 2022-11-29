@@ -6,6 +6,11 @@ test("Nominatim place mapping", () => {
   console.log(JSON.stringify(logcicaContext, null, 2));
 });
 
+test("Nominatim area mapping", () => {
+    const logcicaContext = mapper.mapDetailsToAreaContext(nominatimProvinceOfLuxembourg);
+    console.log(JSON.stringify(logcicaContext, null, 2));
+  });
+
 const nominatimProvinceOfLuxembourg = {
     place_id: 297930369,
     parent_place_id: 297099684,

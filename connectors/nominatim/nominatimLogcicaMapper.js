@@ -16,12 +16,15 @@ export function mapDetailsToPlaceContext(input) {
   // admin level 9 or 8
 
   const address = {
-    streetLine: input.addresstags.street + " " + input.addresstags.housenumber,
+    streetLine: input.addresstags.street,
     postcode: input.calculated_postcode,
     locality: input.address.find((a) => [8, 9].includes(a.admin_level))
       .localname,
     country: "Belgium",
   };
+
+  if (input.addresstags.housenumber != null)
+    address.streetLine += " " + input.addresstags.housenumber;
 
   address.text = osmMapper.getAddressText(address);
 
@@ -109,48 +112,7 @@ export function basicMapping(osmArea) {
 
   const countryCode = "be"
 
-  const config = {
-    be: {
-      mappings: [
-        {
-          filters: {
-            nominatim: {
-              admin_level: 8,
-            },
-          },
-          typeOne: "municipality",
-          typeOther: "municipalities",
-        },
-        {
-          filters: {
-            nominatim: {
-              admin_level: 7,
-            },
-          },
-          typeOne: "arrondissement",
-          typeOther: "arrondissements",
-        },
-        {
-          filters: {
-            nominatim: {
-              admin_level: 6,
-            },
-          },
-          typeOne: "province",
-          typeOther: "provinces",
-        },
-        {
-          filters: {
-            nominatim: {
-              admin_level: 4,
-            },
-          },
-          typeOne: "region",
-          typeOther: "regions",
-        },
-      ],
-    },
-  };
+  const config = osmMapper.countryConfig
 
   const mapping = config[countryCode]?.mappings
   .find(m => m.filters.nominatim != null && m.filters.nominatim.admin_level == osmArea.admin_level)
