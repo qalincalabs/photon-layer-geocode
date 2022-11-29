@@ -1,4 +1,5 @@
 import * as mapper from "./nominatimLogcicaMapper.js";
+import * as core from "../../core/main.js";
 
 test("Nominatim place mapping", () => {
   const logcicaContext = mapper.mapDetailsToPlaceContext(nominatimHouseInCarlsbourg);

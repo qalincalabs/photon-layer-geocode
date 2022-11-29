@@ -1,4 +1,5 @@
 import * as osmMapper from "../openStreetMap/osmLogcicaMapper.js";
+import * as core from "../../core/main.js";
 
 const photonAreaLayersAfterCountryForBelgium = {
   state: {
@@ -101,19 +102,7 @@ export function mapPlaceFeatureToContext(input) {
     areas.push(area);
   }
 
-  for (let i = 0; i < areas.length; i++) {
-    const previousAreas = areas.slice(0, i);
-
-    if (previousAreas.length == 0) continue;
-
-    const currentArea = areas[i];
-    currentArea.geoWithins = previousAreas.map((a) => ({
-      ids: a.ids,
-    }));
-
-    if (currentArea.types.includes("postcode"))
-      currentArea.geoWithins = [{ ids: areas[0].ids }];
-  }
+  core.populateAreaWithins(areas);
 
   place.areas = areas.map((a) => ({
     ids: a.ids,
@@ -130,3 +119,4 @@ export function mapPlaceFeatureToContext(input) {
 
 const PhotonLogcicaMapper = () => {};
 export default PhotonLogcicaMapper;
+

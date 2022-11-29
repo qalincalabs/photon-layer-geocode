@@ -1,4 +1,5 @@
 import * as osmMapper from "../openStreetMap/osmLogcicaMapper.js";
+import * as core from "../../core/main.js";
 
 export function mapDetailsToPlaceContext(input) {
   const place = {
@@ -27,6 +28,7 @@ export function mapDetailsToPlaceContext(input) {
   place.address = address;
 
   const areas = mapAddresses(input);
+  core.populateAreaWithins(areas)
 
   place.areas = areas.map((a) => ({ ids: a.ids }));
 
@@ -41,6 +43,7 @@ export function mapDetailsToAreaContext(input) {
   const currentArea = detailMapping(input, output);
 
   const areas = mapAddresses(input, currentArea.ids);
+  core.populateAreaWithins(areas)
 
   areas.unshift(currentArea);
 
@@ -57,11 +60,12 @@ function mapAddresses(input, skipIds = []) {
       (oa.osm_type == "R" || oa.osm_type == "N") &&
       oa.osm_id != null &&
       oa.isaddress == true &&
-      (oa.type == "administrative" || oa.type == "neighbourhood") &&
+      (oa.type == "administrative" ||
+        oa.type == "neighbourhood" ||
+        oa.type == "postal_code") &&
       oa.rank_address < 26 // to take street or under
-  );
+  ).sort((a, b) => a.admin_level - b.admin_level);
 
-  //.sort((a, b) => a.admin_level - b.admin_level);
   // const address of
   for (const address of addresses) {
     const area = basicMapping(address);
@@ -74,9 +78,10 @@ function mapAddresses(input, skipIds = []) {
     (a) => a.type == "country_code"
   );
 
-  areas.push({
+  areas.unshift({
     ids: ["iso/countries/" + countryCodeAddress.localname],
     name: countryAddress.localname,
+    types: ["country"]
   });
   return areas;
 }
@@ -85,7 +90,7 @@ function mapAddresses(input, skipIds = []) {
 
 // only for those who have an osm_id
 export function basicMapping(osmArea) {
-  const areaTypes = ["region", "province", "village", "town", "neighbourhood"];
+  const areaTypes = ["village", "town", "neighbourhood"];
 
   const area = {
     ids: [
@@ -100,17 +105,68 @@ export function basicMapping(osmArea) {
 
   const types = [];
 
-  if (osmArea.admin_level == 8) {
-    types.push("be/municipality");
-    if (osmArea.addresstags?.postcode != null)
-      area.ids.push("be/postal_code/" + osmArea.addresstags.postcode);
+  // only for Belgium
+
+  const countryCode = "be"
+
+  const config = {
+    be: {
+      mappings: [
+        {
+          filters: {
+            nominatim: {
+              admin_level: 8,
+            },
+          },
+          typeOne: "municipality",
+          typeOther: "municipalities",
+        },
+        {
+          filters: {
+            nominatim: {
+              admin_level: 7,
+            },
+          },
+          typeOne: "arrondissement",
+          typeOther: "arrondissements",
+        },
+        {
+          filters: {
+            nominatim: {
+              admin_level: 6,
+            },
+          },
+          typeOne: "province",
+          typeOther: "provinces",
+        },
+        {
+          filters: {
+            nominatim: {
+              admin_level: 4,
+            },
+          },
+          typeOne: "region",
+          typeOther: "regions",
+        },
+      ],
+    },
+  };
+
+  const mapping = config[countryCode]?.mappings
+  .find(m => m.filters.nominatim != null && m.filters.nominatim.admin_level == osmArea.admin_level)
+
+  if(mapping != null){
+    types.push(countryCode + "/" + mapping.typeOne)
+    area.ids.push(countryCode + "/" + mapping.typeOther + "/" + core.sluggify(osmArea.localname))
   }
-  if (osmArea.admin_level == 7) types.push("be/arrondissement");
-  if (osmArea.admin_level == 6) types.push("be/province");
-  if (osmArea.admin_level == 4) types.push("be/region");
+
+  if(osmArea.type == "postal_code"){
+    types.push("postal_code")
+    area.ids.push(countryCode + "/postal_codes/" + core.sluggify(osmArea.localname))
+  }
 
   if (areaTypes.includes(osmArea.type) && types.length == 0)
-    types.push(osmArea.type);
+    types.push("osm/"+osmArea.type)
 
   if (types.length > 0) area.types = types;
 
