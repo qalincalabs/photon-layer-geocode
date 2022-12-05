@@ -43,7 +43,7 @@ export function progressiveIntersect(objects) {
 
   const intersection = {};
 
-  console.log(JSON.stringify(objects));
+  //console.log(JSON.stringify(objects));
 
   for (const k of PhotonProperties) {
     const values = objects
@@ -53,8 +53,8 @@ export function progressiveIntersect(objects) {
 
     if (values.length == 0) continue;
 
-    console.log(k);
-    console.log(values);
+    //console.log(k);
+    //console.log(values);
 
     if (values.every((v) => v == values[0])) {
       intersection[k] = values[0];
@@ -107,88 +107,6 @@ function photonFeatureId(featureProperties, untilLayer) {
   return idComponents.join("/");
 }
 
-export function mapOsmArea(osmArea) {
-  const languages = ["en", "fr", "nl", "de", "vls", "wa"];
-  const areaTypes = ["region", "province", "village", "town", "neighbourhood"];
-
-  const area = {
-    ids: ["osm/" + osmArea.osm_type + "/"+ osmArea.osm_id, 
-      "osm/place/"+ osmArea.place_id],
-    name: osmArea.localname
-  };
-
-  const types = [];
-
-  if (osmArea.admin_level == 8) {
-    types.push("municipality");
-    if (osmArea.addresstags?.postcode != null)
-      area.ids.push("be/postal_code/" + osmArea.addresstags.postcode);
-  }
-  if (osmArea.admin_level == 7) types.push("district");
-  if (osmArea.admin_level == 4) types.push("region");
-  if (osmArea.admin_level == 2) types.push("country");
-
-  if (areaTypes.includes(osmArea.extratags?.linked_place) && types.length == 0)
-    types.push(osmArea.extratags.linked_place);
-
-  if (areaTypes.includes(osmArea.type) && types.length == 0)
-    types.push(osmArea.type);
-
-  if(types.length > 0)
-    area.types = types;
-
-  if (osmArea.names != null) {
-    for (const lang of languages) {
-      if ("name:" + lang in osmArea.names){
-        if(area.translations == null)
-          area.translations = {}
-        area.translations[lang] = osmArea.names["name:" + lang];
-      }
-    }
-
-    if ("ISO3166-2" in osmArea.names)
-      area.ids.push("iso/subdivisions/" + osmArea.names["ISO3166-2"]);
-  }
-
-  if (osmArea.extratags != null) {
-    if ("ref:INS" in osmArea.extratags)
-      area.ids.push("be/ins/" + osmArea.extratags["ref:INS"]);
-    if ("ref:nuts:1" in osmArea.extratags)
-      area.ids.push("nuts/1/" + osmArea.extratags["ref:nuts:1"]);
-    if ("ref:nuts:2" in osmArea.extratags)
-      area.ids.push("nuts/2/" + osmArea.extratags["ref:nuts:2"]);
-    if ("ref:nuts:3" in osmArea.extratags)
-      area.ids.push("nuts/3/" + osmArea.extratags["ref:nuts:3"]);
-
-    if ("ISO3166-1:alpha2" in osmArea.extratags)
-      area.ids.push("iso/countries/" + osmArea.extratags["ISO3166-1:alpha2"]);
-    if ("ISO3166-1:alpha3" in osmArea.extratags)
-      area.ids.push(
-        "iso/countries/alpha3/" + osmArea.extratags["ISO3166-1:alpha3"]
-      );
-    if ("ISO3166-1:numeric" in osmArea.extratags)
-      area.ids.push(
-        "iso/countries/numeric/" + osmArea.extratags["ISO3166-1:numeric"]
-      );
-    if ("country_code_fips" in osmArea.extratags)
-      area.ids.push("fips/countries/" + osmArea.extratags["country_code_fips"]);
-  }
-
-  area.ids = area.ids.map((i) => i.toLowerCase());
-  return area;
-}
-
-function nominatimAreasFromPlaceDetails(nominatimPlaceDetails) {
-  return nominatimPlaceDetails.address
-    .filter(
-      (oa) =>
-        (oa.osm_type == "R" || oa.osm_type == "N") &&
-        oa.osm_id != null &&
-        oa.isaddress == true &&
-        (oa.type == "administrative" || oa.type == "neighbourhood")
-    )
-    .sort((a, b) => a.admin_level - b.admin_level);
-}
 
 export async function get(url, urlSearchParams){
   const requestUrl = url + "?" + urlSearchParams.toString();
@@ -238,9 +156,12 @@ export class PhotonLayerGeocoder {
 
     // TODO get strategy tactics
     for (const tactic of this.profile.tactics) {
-      console.log(initialData);
+
+      const searchComponents = tactic.getSearchComponents(initialData)
+      console.log(searchComponents)
+      
       const response = await this.makePhotonRequest(
-        tactic.getSearchComponents(initialData),
+        searchComponents,
         {
           layers: tactic.layers,
           limit: tactic.limit,
@@ -260,22 +181,126 @@ export class PhotonLayerGeocoder {
         features: features,
       });
 
-      console.log(JSON.stringify(response, null, 2));
+      //console.log(JSON.stringify(response, null, 2));
     }
 
+
+    const properties = ["countrycode","state","county","city","district","postcode","street","housenumber"]
+
+    const matrix = []
+
+    for(const r of runs){
+      for(const f of r.features){
+        for(const p of properties){
+          console.log(f)
+          if(f.properties[p] != null)
+            matrix.push({
+              key: r.tactic.key,
+              property: p,
+              value: f.properties[p],
+              uuid: f.properties.osm_type.toLowerCase() + "-" + f.properties.osm_id
+            })
+        }
+      }
+    }
+
+    const result = {}
+
+    for(const p of properties){
+       
+      result[p] = mode(matrix.filter(m => m.property == p).map(m => m.value))
+      // unique
+      // most popular
+      // 
+    }
+
+    let groupedMatrix = []
+
+    for(const m of matrix){
+      const e = groupedMatrix.find(g => g.value == m.value && g.property == m.property)
+      if(e == null){
+        groupedMatrix.push({
+          value: m.value,
+          property: m.property,
+          keys: [m.key],
+          uuids: [m.uuid]
+        })
+      }else{
+        e.keys.push(m.key),
+        e.uuids.push(m.uuid)
+      }
+    }
+
+    groupedMatrix = groupedMatrix.sort((a,b) => a.keys.length > b.keys.length)
+
+    const result1 = {}
+    const exactMatch = {}
+    const closestMatch = {}
+    const previousMatch = []
+
+    for(const p of properties){
+
+      const myTactics = this.profile.tactics
+        .filter(t => t.properties.includes(p))
+        .map(t => t.key)
+      console.log(myTactics)
+      console.log(p)
+
+      const bestMatches = groupedMatrix
+        .filter(g => g.property == p && myTactics.every(t => g.keys.includes(t)))
+
+      let bestMatch = null
+
+      console.log(bestMatches)
+      for(const best of bestMatches){
+        if(previousMatch.every(p => 
+          groupedMatrix.find(g => g.property == p.property & g.value == p.value && g.uuids.some(u => best.uuids.includes(u)))!= null)){
+            bestMatch = best
+            break;
+          }
+      }
+
+      if(bestMatch == null && bestMatches.length > 0){
+        const closest = bestMatches[0]
+        closestMatch[p] = closest.value
+      }
+      
+      if(bestMatch != null){
+        exactMatch[p] = bestMatch.value
+        closestMatch[p] = bestMatch.value
+        previousMatch.push(bestMatch)
+      }
+    }
+
+    console.log(exactMatch)
+    console.log(closestMatch)
+   // console.log(previousMatch)
+
+    /*
     const wantedFeatures = runs
       .filter((r) => r.features.length == 1)
       .map((r) => r.features[0]);
-    console.log("Wanted");
-    console.log(wantedFeatures);
+    */
+
+    //console.log(JSON.stringify(runs, null, 2))
+
+    const wantedFeatures = runs.map(r => r.features).flat()
+
+    //console.log("Wanted");
+    //console.log(wantedFeatures);
     const consolidatedFeature = progressiveIntersect(wantedFeatures);
-    console.log(consolidatedFeature);
+    //console.log(consolidatedFeature);
+
+    // On passe à travers toutes les localités et on écrême jusqu'à trouver ce qui 
+    // nous laisse un résultat dans les autres
+
+    // Idem pour street
 
     const r = {
       road: consolidatedFeature.street,
     };
 
-    console.log(initialData);
+    //console.log(initialData);
     if (currentStrategy.approve.house(initialData, consolidatedFeature)) {
       r.houseNumber = consolidatedFeature.housenumber;
       const houseFeature = runs.find((r) => r.tactic.layers.includes("house"))
@@ -290,7 +315,7 @@ export class PhotonLayerGeocoder {
 
     for (const pa of photonAreas) {
       const propertyValue = consolidatedFeature[pa];
-      console.log(propertyValue);
+     // console.log(propertyValue);
       if (propertyValue != null) {
         let type = "photon_" + pa;
 
@@ -314,4 +339,11 @@ export class PhotonLayerGeocoder {
 
     return r;
   }
+}
+
+function mode(arr){
+  return arr.sort((a,b) =>
+        arr.filter(v => v===a).length
+      - arr.filter(v => v===b).length
+  ).pop();
 }

@@ -30,7 +30,7 @@ export const addresses = {
     state_id: 213,
   },
   nearBrussels: {
-    address1: "Av. Franklin Roosevelt 50",
+    address1: "Avenue Franklin Roosevelt 50",
     address2: null, // TODO use later, not sure it is in use
     country_id: 29,
     country_name: "Belgium",

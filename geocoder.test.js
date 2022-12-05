@@ -2,7 +2,7 @@ import { addresses } from "./geocoder.test.data.js";
 import { createGeoCoder } from "./my-geocoder.js";
 
 test("Geocode OFN address", async () => {
-  const address = addresses.nearBrussels;
+  const address = addresses.streetDoesNotExist;
 
   if (address.country_name == "Belgium")
     address.country_name = "België / Belgique / Belgien";

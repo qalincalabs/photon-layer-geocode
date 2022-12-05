@@ -15,7 +15,7 @@ export function createGeoCoder() {
               initial.country_name = "België / Belgique / Belgien";
             return initial;
           },
-          tactics: ["ofn-be-house", "ofn-be-locality", "ofn-be-street"],
+          tactics: ["ofn-be-locality", "ofn-be-house", "ofn-be-street"],
           approve: {
             house: (initial, consolidatedFeature) => {
               return (
@@ -30,7 +30,7 @@ export function createGeoCoder() {
         {
           key: "ofn-be-house",
           layers: ["house"],
-          limit: 1,
+          properties: ["countrycode","state","county","city","district","postcode","street","housenumber"],
           getSearchComponents: (initial) => {
             return [
               initial.address1,
@@ -43,6 +43,7 @@ export function createGeoCoder() {
         {
           key: "ofn-be-street",
           layers: ["street"],
+          properties: ["countrycode","state","county","city","district","postcode","street"],
           getSearchComponents: (initial) => {
             return [
               initial.address1,
@@ -64,6 +65,7 @@ export function createGeoCoder() {
         {
           key: "ofn-be-locality",
           layers: ["district", "city"],
+          properties: ["countrycode","state","county","city"],
           getSearchComponents: (initial) => {
             return [initial.city, initial.country_name];
           },
