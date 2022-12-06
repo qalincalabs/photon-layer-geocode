@@ -45,4 +45,11 @@ export const addresses = {
     zipcode: "1050",
     city: "Ixelles",
   },
+  swainstownFarm: {
+    address1: "Swainstown",
+    address2: null, // TODO use later, not sure it is in use
+    country_name: "Ireland",
+    zipcode: "C15 YK80",
+    city: "Kilmessan",
+  }
 };

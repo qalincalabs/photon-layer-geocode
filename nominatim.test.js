@@ -1,4 +1,4 @@
-import { addresses } from "./geocoder.test.data.js";
+import { addresses } from "./limosa/geocoder.test.data.js";
 import { mapOsmArea } from "./geocoder.js";
 import { createGeoCoder } from "./my-geocoder.js";
 
