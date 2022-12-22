@@ -1,5 +1,9 @@
 import * as osmMapper from "../openStreetMap/osmLogcicaMapper.js";
 import * as core from "../../core/main.js";
+import addressFormatter from "@fragaria/address-formatter";
+const isEmpty = (obj) =>
+  [Object, Array].includes((obj || {}).constructor) &&
+  !Object.entries(obj || {}).length;
 
 export function mapDetailsToPlaceContext(input) {
   const place = {
@@ -186,6 +190,119 @@ export function detailMapping(osmArea, area) {
 
   area.ids = area.ids.map((i) => i.toLowerCase());
   return area;
+}
+
+const osmTypes = [
+  {
+    name: "relation",
+    symbol: "R",
+  },
+  {
+    name: "node",
+    symbol: "N",
+  },
+  {
+    name: "way",
+    symbol: "W",
+  },
+];
+
+function osmSymbolFromTypeName(name) {
+  return osmTypes.find((t) => t.name == name)?.symbol;
+}
+
+// add within
+// add limosa address ?
+export function mapLookupResult(result) {
+  const languages = ["fr", "nl", "en"];
+
+  const osmUuid = osmSymbolFromTypeName(result.osm_type) + result.osm_id;
+  const relId = "osm/" + osmUuid.toLowerCase();
+
+  const place = {
+    relId: relId,
+    ids: [relId],
+    bbox: [
+      result.boundingbox[2],
+      result.boundingbox[0],
+      result.boundingbox[3],
+      result.boundingbox[1],
+    ],
+    center: {
+      type: "Point",
+      coordinates: [result.lon, result.lat],
+    },
+    osm: {
+      element: {
+        uuid: osmUuid,
+        id: result.osm_id,
+        type: {
+          name: result.osm_type,
+          symbol: osmSymbolFromTypeName(result.osm_type),
+        },
+      },
+      category: result.category,
+      type: result.type,
+      rank: result.place_rank,
+      importance: result.importance,
+    },
+  };
+
+  if (result.namedetails?.name != null) place.name = result.namedetails["name"];
+
+  if (result.place_rank >= 28) {
+    const addressBeforeFormatting = Object.assign({}, result.address);
+
+    delete addressBeforeFormatting.country;
+    delete addressBeforeFormatting.country_code;
+    delete addressBeforeFormatting["ISO3166-2-lvl4"];
+    delete addressBeforeFormatting["ISO3166-2-lvl6"];
+
+    place.formattedAddress = addressFormatter.format(addressBeforeFormatting, {
+      output: "array",
+      // appendCountry: false, not working
+    });
+  }
+
+  if (isEmpty(result.extratags) == false)
+    place.osm.extratags = result.extratags;
+
+  if (isEmpty(result.extratags) == false) {
+    if ("ref:INS" in result.extratags)
+      place.ids.push("be/ins/" + result.extratags["ref:INS"]);
+    if ("ref:nuts:1" in result.extratags)
+      place.ids.push("nuts/1/" + result.extratags["ref:nuts:1"]);
+    if ("ref:nuts:2" in result.extratags)
+      place.ids.push("nuts/2/" + result.extratags["ref:nuts:2"]);
+    if ("ref:nuts:3" in result.extratags)
+      place.ids.push("nuts/3/" + result.extratags["ref:nuts:3"]);
+
+    if ("ISO3166-1:alpha2" in result.extratags)
+      place.ids.push("places/" + result.extratags["ISO3166-1:alpha2"]);
+    if ("ISO3166-1:alpha3" in result.extratags)
+      place.ids.push(
+        "places/" + result.extratags["ISO3166-1:alpha3"]
+      );
+    if ("ISO3166-1:numeric" in result.extratags)
+      place.ids.push(
+        "places/" + result.extratags["ISO3166-1:numeric"]
+      );
+  }
+
+  place.ids = place.ids.map(i => i.toLowerCase())
+
+  if (isEmpty(result.namedetails) == false) {
+    for (const lang of languages) {
+      if ("name:" + lang in result.namedetails) {
+        if (place.translations == null) place.translations = {};
+        place.translations[lang] = {
+          name: result.namedetails["name:" + lang],
+        };
+      }
+    }
+  }
+
+  return place;
 }
 
 const NominatimLogcicaMapper = () => {};

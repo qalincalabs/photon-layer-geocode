@@ -1,4 +1,3 @@
-import levenshtein from "js-levenshtein";
 import * as fuzz from "fuzzball";
 
 test("A json test", async () => {
@@ -19,16 +18,7 @@ test("A json test", async () => {
 
 test("A json test",  () => {
   
-    // separate on (-)
-    // 
-    // si un seul espace-espace faire un fuzz sur les deux
-
-   console.log(levenshtein("Avenue Franklin Roosevelt","Franklin Rooseveltlaan"))
-   console.log(fuzz.ratio("Avenue Franklin Roosevelt 50", "Avenue Franklin Roosevelt"))
-   console.log(fuzz.ratio("test", "test"))
-   console.log(levenshtein("Avenue des bons légumes","Avenue des Grenadiers"))
-   console.log(fuzz.ratio("Avenue des bons légumes", "Avenue des abeilles"))
-
+   console.log(fuzz.ratio("Grand rue", "Grand rue 60A"))
    // 85% de bon
 })
 
