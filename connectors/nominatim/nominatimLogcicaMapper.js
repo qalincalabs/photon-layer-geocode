@@ -305,5 +305,60 @@ export function mapLookupResult(result) {
   return place;
 }
 
+export function mapPhotonResult(result) {
+
+  const properties = result.properties
+
+  const osmUuid = properties.osm_type + properties.osm_id;
+  const relId = "osm/" + osmUuid.toLowerCase();
+  
+  const place = {
+    relId: relId,
+    ids: [relId],
+    bbox: [
+      properties.extent[0],
+      properties.extent[3],
+      properties.extent[2],
+      properties.extent[1],
+    ],
+    center: result.geometry,
+    osm: {
+      element: {
+        uuid: osmUuid,
+        id: properties.osm_id,
+        type: {
+          symbol: properties.osm_type
+        },
+      },
+      type: properties.type
+    },
+    
+  };
+
+  if(properties.name != null)
+    place.name = properties.name
+
+  const address = {
+    city: properties.city,
+    postcode: properties.postcode,
+    county: properties.county,
+    housenumber: properties.housenumber,
+    street: properties.street,
+    district: properties.district,
+    state: properties.state
+  }
+
+  place.formattedAddress = addressFormatter.format(address, {
+    output: "array",
+  });
+
+  if(properties.osm_type == "country"){
+    place.ids.push("places/"+properties.countrycode.toLowerCase())
+  }
+
+  return place;
+}
+
+
 const NominatimLogcicaMapper = () => {};
 export default NominatimLogcicaMapper;
