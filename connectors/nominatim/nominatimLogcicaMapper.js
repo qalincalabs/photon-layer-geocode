@@ -359,6 +359,68 @@ export function mapPhotonResult(result) {
   return place;
 }
 
+const photonLayers = ["house","street","district","city","county","state","postcode","country"]
+
+const bePhotonTemplates = {
+  house: {
+    arrayFn: p => [p.countrycode,p.city,p.district,p.street,p.housenumber,p.name]
+  },
+  street: {
+    arrayFn: p => [p.countrycode,p.city,p.district,p.street]
+  },
+  district: {
+    arrayFn: p => [p.countrycode,p.city,p.district]
+  },
+  city: {
+    arrayFn: p => [p.countrycode,p.city]
+  },
+  county: {
+    arrayFn: p => [p.countrycode,p.county]
+  },
+  state: {
+    arrayFn: p => [p.countrycode,p.state]
+  },
+  postcode: {
+    arrayFn: p => [p.countrycode,p.postcode],
+    skipOsmPrefix: true
+  },
+  country: {
+    arrayFn: p => [p.countrycode],
+    skipOsmPrefix: true
+  }
+}
+
+export function extractPhotonPlaces(result){
+  const properties = result.properties
+  
+  const places = []
+  
+  for(const layer of photonLayers){
+    const key = layer == "house" ? "housenumber" : layer
+
+    const value = properties[key]
+    if(value == null)
+      continue
+
+    const template = bePhotonTemplates[layer]
+    const idPrefix = bePhotonTemplates.skipOsmPrefix ? "places/" : "places/osm/"
+    const array = template.arrayFn(properties).filter(v => v != null).map(v => v.replace(" ","_").toLowerCase())
+    console.log(array)
+
+    const place = {
+      ids: [idPrefix + array.map(v => v).join("/")],
+      name: properties[key],
+      photon: {
+        type: layer
+      }
+    }
+
+    places.push(place)
+  }
+
+  return places
+}
+
 
 const NominatimLogcicaMapper = () => {};
 export default NominatimLogcicaMapper;

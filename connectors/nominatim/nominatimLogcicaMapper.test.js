@@ -20,6 +20,7 @@ test("Nominatim lookup mapping", () => {
   nominatimLookupResults.forEach((r) => console.log(JSON.stringify(mapper.mapLookupResult(r),null,2)));
   console.log(extractWithinPlaces(nominatimLookupResults[0]));
   console.log(mapper.mapPhotonResult(photonFeature))
+  console.log(mapper.extractPhotonPlaces(photonFeature))
 });
 
 function extractWithinPlaces(result) {
